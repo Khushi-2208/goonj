@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { SignInButton, useUser, useClerk } from '@clerk/nextjs';
 import { 
   Mic, MicOff, Volume2, CheckCircle2, ChevronLeft, 
   RotateCcw, ShieldCheck, Loader2, Sparkles, Building, Landmark, 
@@ -82,11 +83,8 @@ export default function GoonjPortal() {
   
   // Auth state
   const [user, setUser] = useState<DBUser | null>(null);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginName, setLoginName] = useState('');
-  const [loginPhone, setLoginPhone] = useState('');
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const { isLoaded, isSignedIn, user: clerkUser } = useUser();
+  const { signOut, openSignIn } = useClerk();
 
   // Accessibility settings
   const [largeText, setLargeText] = useState(false);
@@ -191,47 +189,11 @@ export default function GoonjPortal() {
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loginName.trim() || !loginPhone.trim()) {
-      setAuthError('Please fill out both Name and Phone fields.');
-      return;
-    }
-    if (loginPhone.length < 10) {
-      setAuthError('Please enter a valid 10-digit mobile number.');
-      return;
-    }
 
-    setIsLoggingIn(true);
-    setAuthError(null);
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: loginName, phone: loginPhone })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setUser(data.user);
-        setShowLoginModal(false);
-        setLoginName('');
-        setLoginPhone('');
-        loadDashboardData();
-        setActiveTab('dashboard');
-      } else {
-        setAuthError(data.error || 'Login failed.');
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An error occurred.';
-      setAuthError(message);
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await signOut();
       setUser(null);
       setSavedSchemes([]);
       setSearchHistory([]);
@@ -391,7 +353,7 @@ export default function GoonjPortal() {
   // User Actions
   const handleToggleBookmark = async (schemeId: string) => {
     if (!user) {
-      setShowLoginModal(true);
+      openSignIn();
       return;
     }
 
@@ -478,11 +440,15 @@ export default function GoonjPortal() {
     return `https://t.me/share/url?url=${encodeURIComponent(window.location.origin)}&text=${text}`;
   };
 
+  // Load session when Clerk is loaded or authentication status changes
+  useEffect(() => {
+    if (isLoaded) {
+      fetchSession();
+    }
+  }, [isLoaded, isSignedIn]);
+
   // Load user session on mount
   useEffect(() => {
-    /* eslint-disable-next-line react-hooks/set-state-in-effect */
-    fetchSession();
-    
     // Check Speech Recognition support
     if (typeof window !== 'undefined') {
       /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -708,12 +674,13 @@ export default function GoonjPortal() {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => setShowLoginModal(true)}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-purple-900/20"
-              >
-                Log In / Register
-              </button>
+              <SignInButton mode="modal">
+                <button
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-purple-900/20"
+                >
+                  Log In / Register
+                </button>
+              </SignInButton>
             )}
           </div>
         </div>
@@ -758,18 +725,22 @@ export default function GoonjPortal() {
               >
                 Continue Without Login
               </button>
-              <button
-                onClick={() => {
-                  if (user) {
-                    setActiveTab('dashboard');
-                  } else {
-                    setShowLoginModal(true);
-                  }
-                }}
-                className="px-8 py-3.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 font-bold rounded-xl transition-all text-sm"
-              >
-                View Dashboard
-              </button>
+              {user ? (
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className="px-8 py-3.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 font-bold rounded-xl transition-all text-sm"
+                >
+                  View Dashboard
+                </button>
+              ) : (
+                <SignInButton mode="modal">
+                  <button
+                    className="px-8 py-3.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 font-bold rounded-xl transition-all text-sm"
+                  >
+                    View Dashboard
+                  </button>
+                </SignInButton>
+              )}
             </div>
           </section>
 
@@ -1396,12 +1367,13 @@ export default function GoonjPortal() {
               <p className="text-zinc-500 text-xs max-w-xs mx-auto mb-6 leading-relaxed">
                 Log in with your name and mobile number to unlock saved schemes, logs history, and download capabilities.
               </p>
-              <button
-                onClick={() => setShowLoginModal(true)}
-                className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs transition-all"
-              >
-                Log In / Register
-              </button>
+              <SignInButton mode="modal">
+                <button
+                  className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs transition-all"
+                >
+                  Log In / Register
+                </button>
+              </SignInButton>
             </div>
           )}
         </main>
@@ -1426,85 +1398,7 @@ export default function GoonjPortal() {
         </div>
       </footer>
 
-      {/* Auth / Login Modal */}
-      {showLoginModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 print:hidden">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 max-w-md w-full relative overflow-hidden shadow-2xl">
-            <button
-              onClick={() => {
-                setShowLoginModal(false);
-                setAuthError(null);
-              }}
-              className="absolute right-4 top-4 p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-            >
-              <X size={16} />
-            </button>
 
-            <div className="text-center mb-6">
-              <span className="inline-flex p-2.5 bg-purple-950/60 border border-purple-800/40 rounded-2xl text-purple-300 mb-3">
-                <HeartHandshake size={24} />
-              </span>
-              <h3 className="text-xl font-bold text-white">Join Goonj Platform</h3>
-              <p className="text-zinc-400 text-xs mt-1.5">
-                Register or log in using your name and phone number.
-              </p>
-            </div>
-
-            {authError && (
-              <div className="p-3 bg-red-950/20 border border-red-900/50 rounded-xl flex items-center gap-2 text-red-300 text-xs mb-4">
-                <AlertCircle size={14} className="shrink-0" />
-                <span>{authError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={loginName}
-                  onChange={e => setLoginName(e.target.value)}
-                  placeholder="e.g. Ramesh Kumar"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs md:text-sm text-white focus:outline-none focus:border-purple-600"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
-                  Mobile Phone Number
-                </label>
-                <input
-                  type="tel"
-                  value={loginPhone}
-                  onChange={e => setLoginPhone(e.target.value)}
-                  placeholder="e.g. 9876543210"
-                  maxLength={10}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs md:text-sm text-white focus:outline-none focus:border-purple-600"
-                  required
-                />
-                <span className="text-[10px] text-zinc-500 mt-1 block">A simulated OTP verification will trigger.</span>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoggingIn}
-                className="w-full mt-4 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-bold rounded-xl text-xs md:text-sm transition-all shadow-md shadow-purple-900/25 flex items-center justify-center gap-2"
-              >
-                {isLoggingIn ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" /> Verifying Profile...
-                  </>
-                ) : (
-                  'Authorize Access'
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

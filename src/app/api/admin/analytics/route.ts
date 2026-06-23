@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { checkIsAdmin } from '@/lib/adminAuth';
 
 export async function GET() {
   try {
+    if (!await checkIsAdmin()) {
+      return NextResponse.json({ success: false, error: 'Access denied. Admin role required.' }, { status: 403 });
+    }
     const totalUsers = await prisma.user.count();
     const totalSearches = await prisma.searchHistory.count();
 

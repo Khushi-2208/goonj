@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useUser, SignInButton, useClerk } from '@clerk/nextjs';
 import { 
   Upload, Link as LinkIcon, Calendar, Check, Trash2, RefreshCw, 
   FileText, ArrowLeft, Loader2, Edit2, Users, Search, Heart, 
-  Building, Globe, MapPin, X, AlertCircle
+  Building, Globe, MapPin, X, AlertCircle, ShieldCheck
 } from 'lucide-react';
 
 interface Scheme {
@@ -39,6 +40,12 @@ interface AnalyticsStats {
 }
 
 export default function AdminDashboard() {
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut } = useClerk();
+  const [secretKey, setSecretKey] = useState('');
+  const [secretError, setSecretError] = useState<string | null>(null);
+  const [verifyingSecret, setVerifyingSecret] = useState(false);
+
   const [schemes, setSchemes] = useState<Scheme[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,11 +103,14 @@ export default function AdminDashboard() {
     }
   };
 
+  const isAdmin = user?.publicMetadata?.role === 'admin';
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchSchemes();
-    fetchAnalytics();
-  }, []);
+    if (isLoaded && isSignedIn && isAdmin) {
+      fetchSchemes();
+      fetchAnalytics();
+    }
+  }, [isLoaded, isSignedIn, isAdmin]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -269,6 +279,140 @@ export default function AdminDashboard() {
     'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 
     'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'
   ];
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-zinc-400">
+        <Loader2 className="animate-spin text-purple-500 mb-4" size={36} />
+        <p className="text-xs uppercase tracking-widest font-bold">Verifying Session...</p>
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl" />
+
+        <div className="glass-panel max-w-md w-full rounded-3xl p-8 border border-zinc-900 shadow-2xl relative z-10 text-center">
+          <span className="inline-flex p-3 bg-purple-950/60 border border-purple-800/40 rounded-2xl text-purple-400 mb-6">
+            <ShieldCheck size={32} />
+          </span>
+          <h2 className="text-2xl font-black text-white tracking-tight mb-2">Admin Dashboard Secure Entry</h2>
+          <p className="text-zinc-400 text-xs leading-relaxed mb-8">
+            Access to this administrative control system is restricted. Please sign in with Clerk to verify your identity.
+          </p>
+          <SignInButton mode="modal">
+            <button className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-900/30 transition-all text-xs uppercase tracking-wider">
+              Sign In with Clerk
+            </button>
+          </SignInButton>
+          <div className="mt-6">
+            <Link href="/" className="inline-flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors text-xs font-semibold">
+              <ArrowLeft size={12} /> Back to Goonj Portal
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isSignedIn && !isAdmin) {
+    const handleVerifySecret = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!secretKey.trim()) return;
+      setVerifyingSecret(true);
+      setSecretError(null);
+      try {
+        const res = await fetch('/api/admin/verify-secret', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secretKey })
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (user) {
+            await user.reload();
+          }
+        } else {
+          setSecretError(data.error || 'Verification failed.');
+        }
+      } catch (err) {
+        setSecretError('Network error. Failed to verify secret.');
+      } finally {
+        setVerifyingSecret(false);
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl" />
+
+        <div className="glass-panel max-w-md w-full rounded-3xl p-8 border border-zinc-900 shadow-2xl relative z-10">
+          <div className="text-center mb-6">
+            <span className="inline-flex p-3 bg-teal-950/60 border border-teal-800/40 rounded-2xl text-teal-400 mb-4 animate-pulse">
+              <AlertCircle size={32} />
+            </span>
+            <h2 className="text-2xl font-black text-white tracking-tight">Specify Admin Passcode</h2>
+            <p className="text-zinc-400 text-xs leading-relaxed mt-2">
+              Your account is not configured as an administrator. Enter the secret key from your environment settings to promote this account.
+            </p>
+          </div>
+
+          {secretError && (
+            <div className="p-3 bg-red-950/20 border border-red-900/50 rounded-xl flex items-center gap-2 text-red-300 text-xs mb-4">
+              <AlertCircle size={14} className="shrink-0" />
+              <span>{secretError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleVerifySecret} className="space-y-4">
+            <div>
+              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">
+                Admin Secret Key
+              </label>
+              <input
+                type="password"
+                value={secretKey}
+                onChange={e => setSecretKey(e.target.value)}
+                placeholder="Enter ADMIN_SECRET_KEY"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-xs md:text-sm text-white focus:outline-none focus:border-purple-600 tracking-widest text-center"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={verifyingSecret}
+              className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-bold rounded-xl shadow-lg transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2"
+            >
+              {verifyingSecret ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Verifying Passcode...
+                </>
+              ) : (
+                'Verify & Authorize'
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 flex justify-between items-center text-xs">
+            <Link href="/" className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition-colors font-semibold">
+              <ArrowLeft size={12} /> Back to Goonj
+            </Link>
+            <button
+              onClick={() => signOut()}
+              className="text-zinc-500 hover:text-red-400 transition-colors font-semibold uppercase tracking-wider text-[10px]"
+            >
+              Switch Account
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6 md:p-12 max-w-6xl mx-auto">

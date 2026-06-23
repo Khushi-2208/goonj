@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { LocalVectorStore } from '@/lib/vectorStore';
+import { checkIsAdmin } from '@/lib/adminAuth';
 
 /**
  * GET /api/admin/purge
@@ -9,6 +10,9 @@ import { LocalVectorStore } from '@/lib/vectorStore';
  */
 export async function GET() {
   try {
+    if (!await checkIsAdmin()) {
+      return NextResponse.json({ success: false, error: 'Access denied. Admin role required.' }, { status: 403 });
+    }
     const currentDate = new Date();
     
     // Step 1: Find all schemes where the expiry date has passed

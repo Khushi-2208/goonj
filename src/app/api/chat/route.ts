@@ -3,11 +3,15 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { prisma } from '@/lib/db';
 import { LocalVectorStore } from '@/lib/vectorStore';
 import { getEmbedding, synthesizeEligibility, EligibilityResult } from '@/lib/gemini';
-import { cookies } from 'next/headers';
+import { getOrCreateDbUser } from '@/lib/auth';
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || ''
-});
+function getAIClient() {
+  const key = process.env.GEMINI_API_KEY || '';
+  console.log(`[getAIClient] Active API Key suffix: ...${key.slice(-5)}`);
+  return new GoogleGenAI({
+    apiKey: key
+  });
+}
 
 interface ChatTurn {
   role: 'user' | 'assistant';
@@ -108,7 +112,7 @@ Instructions:
         while (attempts < maxAttempts) {
           try {
             console.log(`[POST /api/chat] Attempting Gemini call with model ${model} (attempt ${attempts + 1})...`);
-            const res = await ai.models.generateContent({
+            const res = await getAIClient().models.generateContent({
               model,
               contents: modelParams.contents,
               config: modelParams.config
@@ -279,8 +283,8 @@ Instructions:
       }
 
       // Check if logged in to save history
-      const cookieStore = await cookies();
-      const userId = cookieStore.get('goonj_session')?.value || null;
+      const dbUser = await getOrCreateDbUser();
+      const userId = dbUser?.id || null;
 
       // Save to SearchHistory
       try {

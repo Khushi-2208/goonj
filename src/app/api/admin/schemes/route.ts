@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { LocalVectorStore } from '@/lib/vectorStore';
 import { extractTextFromPdf, extractTextFromUrl, chunkText } from '@/lib/parser';
 import { getEmbedding } from '@/lib/gemini';
+import { checkIsAdmin } from '@/lib/adminAuth';
 
 /**
  * GET /api/admin/schemes
@@ -10,6 +11,9 @@ import { getEmbedding } from '@/lib/gemini';
  */
 export async function GET() {
   try {
+    if (!await checkIsAdmin()) {
+      return NextResponse.json({ success: false, error: 'Access denied. Admin role required.' }, { status: 403 });
+    }
     const schemes = await prisma.scheme.findMany({
       orderBy: { createdAt: 'desc' },
     });
@@ -29,6 +33,9 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
+    if (!await checkIsAdmin()) {
+      return NextResponse.json({ success: false, error: 'Access denied. Admin role required.' }, { status: 403 });
+    }
     const formData = await request.formData();
     
     // Extract metadata fields
@@ -150,6 +157,9 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
+    if (!await checkIsAdmin()) {
+      return NextResponse.json({ success: false, error: 'Access denied. Admin role required.' }, { status: 403 });
+    }
     const formData = await request.formData();
     const id = formData.get('id') as string;
 
@@ -275,6 +285,9 @@ export async function PUT(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
+    if (!await checkIsAdmin()) {
+      return NextResponse.json({ success: false, error: 'Access denied. Admin role required.' }, { status: 403 });
+    }
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     

@@ -1,9 +1,12 @@
 import { GoogleGenAI, Type } from '@google/genai';
 
-// Initialize the Google Gen AI client with the API key from environment variables
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || ''
-});
+function getAIClient() {
+  const key = process.env.GEMINI_API_KEY || '';
+  console.log(`[src/lib/gemini] Active API Key suffix: ...${key.slice(-5)}`);
+  return new GoogleGenAI({
+    apiKey: key
+  });
+}
 
 async function callGeminiWithFallback(params: {
   contents: string;
@@ -18,7 +21,7 @@ async function callGeminiWithFallback(params: {
     while (attempts < maxAttempts) {
       try {
         console.log(`[src/lib/gemini] Attempting Gemini call with model ${model} (attempt ${attempts + 1})...`);
-        const res = await ai.models.generateContent({
+        const res = await getAIClient().models.generateContent({
           model,
           contents: params.contents,
           config: params.config
@@ -47,7 +50,7 @@ async function callGeminiWithFallback(params: {
  */
 export async function getEmbedding(text: string): Promise<number[]> {
   try {
-    const response = await ai.models.embedContent({
+    const response = await getAIClient().models.embedContent({
       model: 'gemini-embedding-2',
       contents: text,
     });
