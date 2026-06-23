@@ -1,4 +1,26 @@
 /* eslint-disable */
+const fs = require('fs');
+const path = require('path');
+
+// Parse .env manually at startup
+try {
+  const envContent = fs.readFileSync(path.resolve('.env'), 'utf8');
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const firstEq = trimmed.indexOf('=');
+    if (firstEq === -1) continue;
+    const key = trimmed.slice(0, firstEq).trim();
+    let val = trimmed.slice(firstEq + 1).trim();
+    if (val.startsWith('"') && val.endsWith('"')) {
+      val = val.slice(1, -1);
+    }
+    process.env[key] = val;
+  }
+} catch (e) {
+  console.error('Failed to load .env manually:', e.message);
+}
+
 const { PrismaClient } = require('@prisma/client');
 const { GoogleGenAI } = require('@google/genai');
 
