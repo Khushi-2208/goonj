@@ -101,6 +101,15 @@ export default function GoonjPortal() {
   const [chatDetectedDialect, setChatDetectedDialect] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [chatInput, setChatInput] = useState('');
+  const [translatedQuestions, setTranslatedQuestions] = useState<string[]>([]);
+  const [formAnswers, setFormAnswers] = useState<string[]>(['', '', '', '', '', '', '', '']);
+  const [currentlyRecordingField, _setCurrentlyRecordingField] = useState<number | null>(null);
+  const [isMatchingLoading, setIsMatchingLoading] = useState(false);
+  const currentlyRecordingFieldRef = useRef<number | null>(null);
+  const setCurrentlyRecordingField = (idx: number | null) => {
+    currentlyRecordingFieldRef.current = idx;
+    _setCurrentlyRecordingField(idx);
+  };
 
   // Results State
   const [matchedSchemes, setMatchedSchemes] = useState<EligibilityResult[]>([]);
@@ -213,7 +222,7 @@ export default function GoonjPortal() {
     setChatMessages([
       {
         role: 'assistant',
-        content: 'नमस्ते! गूंज (GOONJ) में आपका स्वागत है। मुझे अपने बारे में बताएं, जैसे कि आपकी उम्र, आप किस राज्य में रहते हैं, और आपको किस प्रकार की सरकारी मदद चाहिए। मैं आपके लिए सही योजनाएं खोज निकालूँगा।\n\nHello! Welcome to Goonj. Tell us about yourself (e.g. your age, state, and what assistance you need) in your language, and I will search for matching schemes.'
+        content: 'नमस्ते! गूंज (GOONJ) में आपका स्वागत है। प्रारंभ करने के लिए कृपया माइक्रोफोन बटन दबाएं और अपनी भाषा में कुछ भी कहें (जैसे "नमस्ते" या "हेलो")।\n\nHello! Welcome to Goonj. Please press the microphone button and speak in your language to start (e.g. "Namaste" or "Hello").'
       }
     ]);
     setChatProfile({});
@@ -223,6 +232,9 @@ export default function GoonjPortal() {
     setChatInput('');
     setMatchedSchemes([]);
     setFeedbackSubmitted({});
+    setTranslatedQuestions([]);
+    setFormAnswers(['', '', '', '', '', '', '', '']);
+    setCurrentlyRecordingField(null);
     setActiveTab('chat');
   };
 
@@ -254,6 +266,7 @@ export default function GoonjPortal() {
         setChatProfile(data.profile);
         setChatDetectedLanguage(data.detectedLanguage);
         if (data.dialect) setChatDetectedDialect(data.dialect);
+        if (data.translatedQuestions) setTranslatedQuestions(data.translatedQuestions);
 
         if (data.isComplete) {
           setMatchedSchemes(data.schemes || []);
@@ -268,7 +281,7 @@ export default function GoonjPortal() {
             ...updatedMessages,
             { role: 'assistant', content: data.nextQuestion }
           ]);
-          setChatTurn(chatTurn + 1);
+          setChatTurn(2); // Go to Phase 2: Form
         }
       } else {
         alert(data.error || 'Assistant failed to process. Please retry.');
@@ -306,13 +319,14 @@ export default function GoonjPortal() {
     }
   };
 
-  const toggleRecording = () => {
+  const toggleRecordingForField = (fieldIdx: number | null) => {
     if (!recognitionRef.current) return;
     
     setSpeechError(null);
     if (isRecording) {
       recognitionRef.current.stop();
       setIsRecording(false);
+      setCurrentlyRecordingField(null);
     } else {
       stopSpeaking();
       
@@ -329,16 +343,49 @@ export default function GoonjPortal() {
       }
 
       try {
+        setCurrentlyRecordingField(fieldIdx);
         // Set dynamic language code based on current chat detected language
         const langCode = getLanguageCode(chatDetectedLanguage);
         recognitionRef.current.lang = langCode;
-        console.log('Starting Speech Recognition with language:', langCode);
+        console.log(`Starting Speech Recognition for field ${fieldIdx} with language:`, langCode);
 
         recognitionRef.current.start();
         setIsRecording(true);
       } catch (err) {
         console.error(err);
       }
+    }
+  };
+
+  const toggleRecording = () => {
+    toggleRecordingForField(null);
+  };
+
+  const handleSubmitForm = async () => {
+    setIsMatchingLoading(true);
+    stopSpeaking();
+    try {
+      const res = await fetch('/api/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          answers: formAnswers
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setChatProfile(data.profile);
+        setMatchedSchemes(data.schemes || []);
+        setActiveTab('results');
+        loadDashboardData(); // Reload history on dashboard if logged in
+      } else {
+        alert(data.error || 'Failed to find matching schemes.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error connecting to match engine.');
+    } finally {
+      setIsMatchingLoading(false);
     }
   };
 
@@ -466,12 +513,24 @@ export default function GoonjPortal() {
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
         rec.onresult = (event: any) => {
           const transcript = event.results[0][0].transcript;
-          setChatInput(transcript);
-          setIsRecording(false);
-          // Auto submit spoken answer after a short pause
-          setTimeout(() => {
-            handleSendAnswerRef.current(transcript);
-          }, 400);
+          const fieldIdx = currentlyRecordingFieldRef.current;
+          
+          if (fieldIdx !== null) {
+            setFormAnswers(prev => {
+              const updated = [...prev];
+              updated[fieldIdx] = transcript;
+              return updated;
+            });
+            setIsRecording(false);
+            setCurrentlyRecordingField(null);
+          } else {
+            setChatInput(transcript);
+            setIsRecording(false);
+            // Auto submit spoken answer after a short pause
+            setTimeout(() => {
+              handleSendAnswerRef.current(transcript);
+            }, 400);
+          }
         };
 
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -831,60 +890,30 @@ export default function GoonjPortal() {
         </main>
       )}
 
-      {/* Conversational Assistant Tab */}
+      {/* Conversational Assistant / Form Discoverer Tab */}
       {activeTab === 'chat' && (
-        <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 py-8 md:py-12 justify-center print:hidden">
-          <div className="glass-panel rounded-3xl p-6 md:p-8 border border-zinc-800 flex flex-col justify-between min-h-[480px]">
+        <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 py-8 md:py-12 justify-center print:hidden animate-fade-in">
+          <div className="glass-panel rounded-3xl p-6 md:p-8 border border-zinc-800 flex flex-col min-h-[480px]">
             {/* Header info */}
-            <div className="flex justify-between items-center border-b border-zinc-900 pb-4 mb-4 text-xs">
+            <div className="flex justify-between items-center border-b border-zinc-900 pb-4 mb-6 text-xs">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-white flex items-center gap-1"><Sparkles size={12} className="text-purple-400 animate-spin" /> Conversational Discovery</span>
+                <span className="font-bold text-white flex items-center gap-1">
+                  <Sparkles size={12} className="text-purple-400 animate-pulse" /> 
+                  Voice Assistant Finder
+                </span>
                 <span className="text-zinc-600">|</span>
-                <span className="text-zinc-400">Questions: {chatTurn}/8</span>
+                <span className="text-zinc-400">
+                  {chatTurn === 1 ? 'Phase 1: Language Detection' : 'Phase 2: Standard Form'}
+                </span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 text-zinc-400">
-                  <Volume2 size={12} /> Auto Speak:
-                  <button 
-                    onClick={() => setAutoSpeak(!autoSpeak)}
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${autoSpeak ? 'bg-purple-900 border border-purple-800 text-purple-300' : 'bg-zinc-950 text-zinc-500'}`}
-                  >
-                    {autoSpeak ? 'On' : 'Off'}
-                  </button>
-                </div>
                 {chatDetectedLanguage && (
-                  <span className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-zinc-300 uppercase font-bold text-[10px]">
+                  <span className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-zinc-300 uppercase font-bold text-[10px] flex items-center gap-1">
+                    <Globe size={10} className="text-purple-400" />
                     {chatDetectedLanguage} {chatDetectedDialect && `(${chatDetectedDialect})`}
                   </span>
                 )}
               </div>
-            </div>
-
-            {/* Conversation Messages Stream */}
-            <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-4 max-h-[300px]">
-              {chatMessages.map((msg, idx) => (
-                <div 
-                  key={idx}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`max-w-[85%] rounded-2xl p-4 text-xs md:text-sm font-medium leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-purple-600 text-white rounded-tr-none'
-                      : 'bg-zinc-900 border border-zinc-850 text-zinc-200 rounded-tl-none'
-                  }`}>
-                    {msg.content}
-                  </div>
-                </div>
-              ))}
-
-              {isChatLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-zinc-900 border border-zinc-850 rounded-2xl rounded-tl-none p-4 flex items-center gap-2 text-zinc-400 text-xs">
-                    <Loader2 size={14} className="animate-spin text-purple-400" />
-                    <span>Analyzing responses...</span>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Error display */}
@@ -895,73 +924,177 @@ export default function GoonjPortal() {
               </div>
             )}
 
-            {/* Voice Input Panel */}
-            <div className="border-t border-zinc-900 pt-6">
-              <div className="flex justify-center mb-6">
-                <button
-                  onClick={toggleRecording}
-                  disabled={!speechSupported || isChatLoading}
-                  className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
-                    isRecording 
-                      ? 'bg-teal-500 text-white animate-voice-pulse shadow-lg shadow-teal-500/20' 
-                      : 'bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 disabled:opacity-40'
-                  }`}
-                  title={isRecording ? 'Stop Recording' : 'Speak your answer'}
-                >
-                  {isRecording ? <MicOff size={24} /> : <Mic size={24} />}
-                </button>
-              </div>
+            {/* Phase 1: Speak to Detect Language */}
+            {chatTurn === 1 && (
+              <div className="flex-1 flex flex-col items-center justify-center py-6 text-center">
+                <div className="max-w-md mx-auto space-y-6">
+                  <div className="space-y-2">
+                    <h2 className="text-xl md:text-2xl font-extrabold text-white">
+                      प्रारंभ करने के लिए बोलें / Speak to Start
+                    </h2>
+                    <p className="text-zinc-400 text-xs md:text-sm leading-relaxed">
+                      अपनी स्थानीय भाषा में कुछ भी कहें (जैसे "नमस्ते" या "हेलो") ताकि हम आपकी भाषा समझ सकें।
+                      <br />
+                      <span className="text-zinc-500 text-[11px] block mt-1">
+                        Speak anything in your mother tongue so we can configure the interface for you.
+                      </span>
+                    </p>
+                  </div>
 
-              {isRecording && (
-                <div className="text-center text-xs font-bold text-teal-400 animate-pulse uppercase tracking-wider mb-4">
-                  Listening... Speak now
+                  <div className="flex flex-col items-center justify-center gap-4 py-6">
+                    <button
+                      onClick={() => toggleRecordingForField(null)}
+                      disabled={!speechSupported || isChatLoading}
+                      className={`w-24 h-24 rounded-full flex items-center justify-center transition-all ${
+                        isRecording && currentlyRecordingField === null
+                          ? 'bg-teal-500 text-white animate-voice-pulse shadow-lg shadow-teal-500/30'
+                          : 'bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:scale-105 disabled:opacity-40'
+                      }`}
+                      title={isRecording ? 'Stop Recording' : 'Speak now'}
+                    >
+                      {isRecording && currentlyRecordingField === null ? <MicOff size={36} /> : <Mic size={36} />}
+                    </button>
+                    {isRecording && currentlyRecordingField === null && (
+                      <span className="text-xs font-bold text-teal-400 animate-pulse uppercase tracking-wider">
+                        Listening... Speak now
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Fallback Input */}
+                  <div className="flex gap-2 max-w-sm mx-auto">
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={e => setChatInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleSendAnswer();
+                      }}
+                      placeholder="Or type greeting (e.g. Namaste)..."
+                      className="flex-1 bg-zinc-950 border border-zinc-850 rounded-xl p-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-purple-600"
+                      disabled={isChatLoading || isRecording}
+                    />
+                    <button
+                      onClick={() => handleSendAnswer()}
+                      disabled={!chatInput.trim() || isChatLoading || isRecording}
+                      className="px-4 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold rounded-xl text-xs flex items-center justify-center transition-all"
+                    >
+                      {isChatLoading ? <Loader2 size={12} className="animate-spin" /> : 'Next'}
+                    </button>
+                  </div>
                 </div>
-              )}
-
-              {/* Text Input Back-up */}
-              <div className="flex gap-2">
-                <textarea
-                  value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendAnswer();
-                    }
-                  }}
-                  placeholder="Or type your response here in any language (e.g. Hindi, Bhojpuri, Bengali, English)..."
-                  rows={2}
-                  className="flex-1 bg-zinc-950 border border-zinc-850 rounded-xl p-3 pr-10 text-white placeholder-zinc-700 focus:outline-none focus:border-purple-600 text-xs md:text-sm leading-relaxed resize-none"
-                  disabled={isChatLoading || isRecording}
-                />
-                <button
-                  onClick={() => handleSendAnswer()}
-                  disabled={!chatInput.trim() || isChatLoading || isRecording}
-                  className="px-4 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold rounded-xl text-xs md:text-sm flex items-center justify-center transition-all"
-                >
-                  Send
-                </button>
               </div>
+            )}
 
-              {/* Nav controls */}
-              <div className="flex justify-between items-center mt-6 text-xs text-zinc-500">
-                <button
-                  onClick={() => {
-                    stopSpeaking();
-                    setActiveTab('home');
-                  }}
-                  className="flex items-center gap-1 hover:text-white"
-                >
-                  <ChevronLeft size={14} /> Exit Voice Assistant
-                </button>
-                <button
-                  onClick={handleStartChat}
-                  className="flex items-center gap-1 hover:text-white"
-                >
-                  <RotateCcw size={12} /> Restart
-                </button>
+            {/* Phase 2: Show Form */}
+            {chatTurn === 2 && (
+              <div className="flex-1 flex flex-col gap-6">
+                <div className="p-4 bg-purple-950/20 border border-purple-900/30 rounded-2xl flex items-start gap-3">
+                  <Sparkles size={16} className="text-purple-400 mt-0.5 animate-pulse" />
+                  <div className="space-y-1">
+                    <h3 className="text-xs font-bold text-purple-300 uppercase tracking-wider">Language Detected: {chatDetectedLanguage}</h3>
+                    <p className="text-zinc-300 text-xs md:text-sm leading-relaxed">
+                      कृपया नीचे दिए गए प्रपत्र को अपनी भाषा में भरें। प्रत्येक प्रश्न को सुनने के लिए लाउडस्पीकर बटन दबाएं, और उत्तर देने के लिए माइक का उपयोग करें।
+                      <span className="text-zinc-500 block text-[11px] mt-1">
+                        Please answer the questions below. Press the speaker to listen, and the mic to speak your answer.
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Form fields grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[380px] overflow-y-auto pr-2 py-2">
+                  {translatedQuestions.map((qText, i) => (
+                    <div key={i} className="space-y-2 p-4 rounded-2xl bg-zinc-900/30 border border-zinc-850/50 flex flex-col justify-between">
+                      <div className="flex justify-between items-start gap-2">
+                        <label className="text-xs md:text-sm font-semibold text-zinc-200 block flex-1">
+                          <span className="text-purple-400 font-bold mr-1">Q{i + 1}.</span>
+                          {qText}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => speakText(qText, chatDetectedLanguage)}
+                          className="p-1.5 rounded-lg bg-zinc-950 border border-zinc-850 hover:border-purple-600/50 text-zinc-400 hover:text-white transition-all cursor-pointer"
+                          title="Listen to question"
+                        >
+                          <Volume2 size={12} />
+                        </button>
+                      </div>
+
+                      <div className="flex gap-2 mt-2 items-center">
+                        <input
+                          type="text"
+                          value={formAnswers[i]}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setFormAnswers(prev => {
+                              const updated = [...prev];
+                              updated[i] = val;
+                              return updated;
+                            });
+                          }}
+                          placeholder="Speak or type answer..."
+                          className="flex-1 bg-zinc-950 border border-zinc-850 rounded-xl p-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-purple-600"
+                          disabled={isMatchingLoading}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => toggleRecordingForField(i)}
+                          disabled={isMatchingLoading || !speechSupported}
+                          className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                            isRecording && currentlyRecordingField === i
+                              ? 'bg-teal-500 text-white animate-voice-pulse'
+                              : 'bg-zinc-950 border border-zinc-850 text-zinc-400 hover:text-white hover:border-teal-500/50'
+                          }`}
+                          title="Speak answer"
+                        >
+                          {isRecording && currentlyRecordingField === i ? <MicOff size={14} /> : <Mic size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Submission and controls */}
+                <div className="border-t border-zinc-900 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                  <button
+                    onClick={() => {
+                      stopSpeaking();
+                      setActiveTab('home');
+                    }}
+                    className="flex items-center gap-1 text-xs text-zinc-500 hover:text-white transition-all order-2 md:order-1 cursor-pointer"
+                  >
+                    <ChevronLeft size={14} /> Back to Home
+                  </button>
+
+                  <div className="flex gap-3 order-1 md:order-2 w-full md:w-auto">
+                    <button
+                      onClick={handleStartChat}
+                      className="px-4 py-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 justify-center flex-1 md:flex-none cursor-pointer"
+                    >
+                      <RotateCcw size={12} /> Reset
+                    </button>
+                    <button
+                      onClick={handleSubmitForm}
+                      disabled={isMatchingLoading || !formAnswers.some(ans => ans.trim())}
+                      className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 flex-1 md:flex-none cursor-pointer"
+                    >
+                      {isMatchingLoading ? (
+                        <>
+                          <Loader2 size={12} className="animate-spin" />
+                          <span>Searching...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={12} className="text-teal-400" />
+                          <span>Find Schemes / योजनाएं खोजें</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </main>
       )}

@@ -36,7 +36,7 @@ export function getAIClient() {
   });
 }
 
-async function callGeminiWithFallback(params: {
+export async function callGeminiWithFallback(params: {
   contents: string;
   config: any;
 }): Promise<any> {
@@ -45,7 +45,9 @@ async function callGeminiWithFallback(params: {
 
   for (const model of models) {
     let attempts = 0;
-    const maxAttempts = 2;
+    const maxAttempts = 3;
+    let fallbackToNextModel = false;
+
     while (attempts < maxAttempts) {
       try {
         console.log(`[src/lib/gemini] Attempting Gemini call with model ${model} (attempt ${attempts + 1})...`);
@@ -58,16 +60,29 @@ async function callGeminiWithFallback(params: {
       } catch (err: any) {
         attempts++;
         lastError = err;
-        console.warn(`[src/lib/gemini] Model ${model} failed (attempt ${attempts}):`, err.message || err);
-        
         const errStr = String(err.message || err);
-        const isTransient = errStr.includes('503') || errStr.includes('429') || errStr.includes('UNAVAILABLE') || err.status === 503;
-        if (isTransient) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+        console.warn(`[src/lib/gemini] Model ${model} failed (attempt ${attempts}):`, errStr);
+
+        const isRateLimited = errStr.includes('429') || errStr.includes('RESOURCE_EXHAUSTED') || errStr.toLowerCase().includes('quota');
+        const isServerUnavailable = errStr.includes('503') || errStr.includes('UNAVAILABLE') || err.status === 503;
+
+        if (isRateLimited) {
+          const delay = attempts * 3000;
+          console.log(`[src/lib/gemini] Rate limit hit. Waiting ${delay}ms before retrying model ${model}...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else if (isServerUnavailable) {
+          const delay = attempts * 1000;
+          console.log(`[src/lib/gemini] Server transient error. Waiting ${delay}ms before retrying model ${model}...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
         } else {
-          break; // Try next model immediately
+          fallbackToNextModel = true;
+          break;
         }
       }
+    }
+
+    if (!fallbackToNextModel && lastError) {
+      throw lastError;
     }
   }
   throw lastError || new Error('All model attempts failed');
@@ -82,7 +97,7 @@ export async function getEmbedding(text: string): Promise<number[]> {
       model: 'gemini-embedding-2',
       contents: text,
     });
-    
+
     if (response.embeddings?.[0]?.values) {
       return response.embeddings[0].values;
     }

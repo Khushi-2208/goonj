@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Type } from '@google/genai';
 import { prisma } from '@/lib/db';
 import { LocalVectorStore } from '@/lib/vectorStore';
-import { getEmbedding, synthesizeEligibility, EligibilityResult, getAIClient } from '@/lib/gemini';
+import { getEmbedding, synthesizeEligibility, EligibilityResult, getAIClient, callGeminiWithFallback } from '@/lib/gemini';
 import { getOrCreateDbUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -50,85 +50,67 @@ export async function POST(request: NextRequest) {
       needsAndInterests: profile.needsAndInterests || ''
     };
 
-    const prompt = `
-You are the conversational assistant for GOONJ (गूंज), a voice-first government scheme discovery platform.
-Your goal is to converse with a citizen in their preferred language to gather key demographic details to match them with government welfare schemes.
+    let prompt = '';
+    if (turnNumber === 1) {
+      prompt = `
+You are the conversational assistant for GOONJ (गूंज), a voice-first government scheme discovery platform in India.
+Your goal is to detect the citizen's language and ask them to supply all their demographic details in one go so we can match them with welfare schemes.
 
-Core details to collect:
-1. state (Standardized to the official English state name, e.g. "Bihar", "Maharashtra", "Uttar Pradesh", "Tamil Nadu", or "Central")
-2. age (Number)
-3. gender ("Male", "Female", or "All")
-4. casteCategory ("SC", "ST", "OBC", or "General")
-5. annualIncome (Number in INR, e.g. 150000)
-6. occupation (e.g. "farmer", "student", "unemployed", "merchant", "weaver", "artisan", etc.)
-7. disabilityStatus ("Yes" or "No")
-8. needsAndInterests (A short English translation of what they are looking for, e.g. "education scholarship", "farming seed subsidies", "housing help", "business loans")
-
-Current Accumulated Profile:
-${JSON.stringify(currentProfile, null, 2)}
-
-Chat History:
-${history.map((h: ChatTurn) => `${h.role === 'user' ? 'Citizen' : 'Goonj Assistant'}: "${h.content}"`).join('\n')}
-
-Latest Citizen Input:
+Citizen First Input:
 "${message}"
 
-Current Turn Number: ${turnNumber} (Max allowed questions: 8)
-Established Language: ${turnNumber > 1 ? detectedLanguage : 'Not yet established'}
+Instructions:
+1. Detect the citizen's primary spoken language (e.g. Hindi, English, Bhojpuri, Marathi, Tamil, Telugu, Gujarati, Bengali, etc.). Save to "detectedLanguage".
+2. Detect the dialect if possible (e.g. Bhojpuri, Maithili, standard Hindi, etc.). Save to "dialect".
+3. Check if the citizen's input already contains multiple demographic details (e.g. state, age, caste, income, occupation, etc.).
+   - If they did NOT provide multiple demographics (usually it's just a greeting like "Hi", "नमस्ते", or "I need schemes"):
+     - Set "isComplete" to false.
+     - Formulate a warm, welcoming response in the citizen's detected language. Explicitly ask them to state all the details. Set this response to "nextQuestion".
+     - For the "profile" object, output the current profile or default values since details are not provided yet.
+   - If they DID already provide multiple demographics in their first message:
+     - Set "isComplete" to true.
+     - Extract all details into the "profile" object. Ensure age and annualIncome are numbers. Standardize the state name to the official English name.
+     - Formulate a brief closing in their language saying you are matching schemes. Set to "nextQuestion".
+4. Translate the following 8 demographic questions into the citizen's detected language and output them in the "translatedQuestions" array:
+   Question 1: "State of residence"
+   Question 2: "Age"
+   Question 3: "Gender"
+   Question 4: "Caste category (General, OBC, SC, or ST)"
+   Question 5: "Annual family income (in Rupees)"
+   Question 6: "Occupation / Job"
+   Question 7: "Disability status (Yes/No, with percentage if applicable)"
+   Question 8: "What kind of government assistance or welfare schemes are you looking for?"
+`;
+    } else {
+      prompt = `
+You are the conversational assistant for GOONJ (गूंज).
+The citizen has provided their details in response to our question.
+Your goal is to parse their input and extract all their demographic details.
+
+Citizen Input:
+"${message}"
+
+Chat History (for context):
+${history.map((h: ChatTurn) => `${h.role === 'user' ? 'Citizen' : 'Goonj Assistant'}: "${h.content}"`).join('\n')}
 
 Instructions:
-1. ${turnNumber === 1
-        ? 'Detect the citizen\'s primary spoken language (e.g. Hindi, English, Bhojpuri, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam, Punjabi, Odia) from this first input, and save to "detectedLanguage".'
-        : `Do NOT attempt to guess or change the language. The language has already been established as "${detectedLanguage}". Strictly save "${detectedLanguage}" to "detectedLanguage".`
-      }
-2. If possible, detect the specific dialect (e.g. Bhojpuri, Maithili, Magahi, standard Hindi, etc.) and save to "dialect".
-3. Extract any new details from the latest citizen input and merge them into the profile. Ensure age and annualIncome are numbers. For state, map to standardized English names. If caste is mentioned (like SC, ST, OBC), categorize appropriately.
-4. For any fields that have not been provided or cannot be inferred yet, strictly use their existing value from the Current Accumulated Profile.
-5. Identify which of the 8 core parameters are still missing (i.e. default empty values, age=0, income=0, needsAndInterests='', state='').
-6. If there are missing fields AND the turnNumber is less than 8:
-   - Formulate a single, polite, natural question in the citizen's detected language to ask for ONE of the missing parameters. Keep the tone warm, welcoming, and extremely simple (suitable for rural/elderly users).
-   - Set "isComplete" to false.
-7. If all key parameters are filled, OR if the turnNumber reaches 8:
-   - Formulate a brief warm closing in the citizen's language telling them you are scanning the matching schemes.
-   - Set "isComplete" to true.
+1. Extract all details into the "profile" object.
+   Demographics to extract:
+   - state: Standardized official English state name (e.g. "Bihar", "Maharashtra", "Uttar Pradesh", "Tamil Nadu", or "Central"). Default to "Bihar" if not mentioned.
+   - age: Number. Default to 25 if not mentioned.
+   - gender: "Male", "Female", or "All". Default to "All" if not mentioned.
+   - casteCategory: "SC", "ST", "OBC", or "General". Default to "General" if not mentioned.
+   - annualIncome: Number in INR (e.g. 150000). Default to 150000 if not mentioned.
+   - occupation: e.g. "farmer", "student", "unemployed", "merchant", "weaver", "artisan". Default to "farmer" if not mentioned.
+   - disabilityStatus: "Yes" or "No". Default to "No" if not mentioned.
+   - disabilityPercentage: Number. Default to 0 if not mentioned.
+   - needsAndInterests: English translation of what they are looking for. Default to "welfare benefits" if not mentioned.
+2. Maintain the "detectedLanguage" as "${detectedLanguage}".
+3. Formulate a brief warm closing in the citizen's language (e.g. Hindi or English) telling them you are scanning the database for eligible schemes. Save to "nextQuestion".
+4. Set "isComplete" to true.
+5. Output the translated questions in the citizen's detected language in the "translatedQuestions" array (similar to Turn 1).
 `;
-
-    const callGeminiWithFallback = async (modelParams: {
-      contents: string;
-      config: any;
-    }) => {
-      const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
-      let lastError: any = null;
-
-      for (const model of models) {
-        let attempts = 0;
-        const maxAttempts = 2;
-        while (attempts < maxAttempts) {
-          try {
-            console.log(`[POST /api/chat] Attempting Gemini call with model ${model} (attempt ${attempts + 1})...`);
-            const res = await getAIClient().models.generateContent({
-              model,
-              contents: modelParams.contents,
-              config: modelParams.config
-            });
-            return res;
-          } catch (err: any) {
-            attempts++;
-            lastError = err;
-            console.warn(`[POST /api/chat] Model ${model} failed (attempt ${attempts}):`, err.message || err);
-
-            const errStr = String(err.message || err);
-            const isTransient = errStr.includes('503') || errStr.includes('429') || errStr.includes('UNAVAILABLE') || err.status === 503;
-            if (isTransient) {
-              await new Promise(resolve => setTimeout(resolve, 500));
-            } else {
-              break;
-            }
-          }
-        }
-      }
-      throw lastError || new Error('All model attempts failed');
-    };
+    }
 
     const response = await callGeminiWithFallback({
       contents: prompt,
@@ -159,9 +141,13 @@ Instructions:
               items: { type: Type.STRING }
             },
             nextQuestion: { type: Type.STRING },
-            isComplete: { type: Type.BOOLEAN }
+            isComplete: { type: Type.BOOLEAN },
+            translatedQuestions: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
           },
-          required: ['detectedLanguage', 'profile', 'missingFields', 'nextQuestion', 'isComplete']
+          required: ['detectedLanguage', 'profile', 'missingFields', 'nextQuestion', 'isComplete', 'translatedQuestions']
         }
       }
     });
@@ -171,7 +157,7 @@ Instructions:
     }
 
     const parsedResult = JSON.parse(response.text);
-    const { detectedLanguage: responseLang, dialect, profile: updatedProfile, isComplete, nextQuestion } = parsedResult;
+    const { detectedLanguage: responseLang, dialect, profile: updatedProfile, isComplete, nextQuestion, translatedQuestions } = parsedResult;
     detectedLanguage = responseLang || detectedLanguage;
 
     // Check if we need to run scheme matching
@@ -314,7 +300,8 @@ Instructions:
         isComplete: true,
         nextQuestion,
         schemes: qualifyingSchemes,
-        totalEligible: qualifyingSchemes.length
+        totalEligible: qualifyingSchemes.length,
+        translatedQuestions
       });
     }
 
@@ -324,7 +311,8 @@ Instructions:
       dialect,
       profile: updatedProfile,
       isComplete: false,
-      nextQuestion
+      nextQuestion,
+      translatedQuestions
     });
 
   } catch (error) {
