@@ -70,6 +70,38 @@ d:\goonj
 
 ---
 
+## 🧩 Architecture
+
+```mermaid
+flowchart TD
+    User((User))
+    
+    subgraph Firebase ["Firebase"]
+        Awaaz[Awaaz Frontend]
+        FirebaseAuth[Firebase Auth]
+        Firestore[Cloud Firestore]
+    end
+
+    WebSpeech[Web Speech API]
+    NextJS[Next.js API Route]
+    Gemini[Gemini LLM]
+
+    User -->|Voice/Text| Awaaz
+    Awaaz -->|Text-to-Speech| User
+    
+    Awaaz -->|Auth| FirebaseAuth
+    Awaaz -->|History| Firestore
+    
+    Awaaz -->|Speech-to-Text| WebSpeech
+    WebSpeech -->|Query| NextJS
+    
+    Awaaz <--> NextJS
+    NextJS -->|Context + Prompt| Gemini
+    Gemini -->|Structured Data| NextJS
+```
+
+---
+
 ## ✨ Features
 
 ### 1. Unified Authentication & Identity Management
@@ -85,7 +117,7 @@ d:\goonj
 ### 3. Scheme Browsing & Accessibility
 - Detailed rendering of scheme titles, ministries, rules, and application steps.
 - **Audio Synthesizer**: Text-to-Speech (TTS) engine reads scheme descriptions aloud to enhance accessibility.
-- **Direct Application URLs**: Links to official application portals, with dynamic Google Search fallback URLs based on the scheme name.
+- **Dedicated Apply Link**: Allows saving a direct application portal URL for each scheme. When users click the "Apply Now" button, they are redirected directly to this saved destination link (falling back to the parsed document URL or Google search if none is specified).
 - **Save/Bookmark System**: Save schemes to your profile for quick review.
 
 ### 4. Report Print & Download
@@ -96,6 +128,7 @@ d:\goonj
 - **Admin Secret Verification**: Promotion to the admin role via an `ADMIN_SECRET_KEY` check, updating public Clerk metadata dynamically.
 - **Analytics & History**: Track search history, popular schemes, and user demographics.
 - **Database Control**: Dynamic CRUD management for schemes and full database purges.
+- **Bypass SSL Verification**: Configured to bypass strict SSL certificate verification when crawling government portals (e.g., `.gov.in` sites), preventing crawling failures due to untrusted intermediate certificates.
 
 ---
 
@@ -103,7 +136,7 @@ d:\goonj
 
 The database uses the following relational Prisma schema in PostgreSQL:
 
-- **`Scheme`**: Holds details about welfare schemes (eligibility rules, guidelines, ministry, links, and application steps).
+- **`Scheme`**: Holds details about welfare schemes (eligibility rules, guidelines, ministry, direct apply link, source links, and application steps).
 - **`SchemeVector`**: Holds broken-down text chunks of scheme guidelines with their high-dimensional vector embeddings.
 - **`User`**: Maps authenticated Clerk users to local DB profiles.
 - **`SavedScheme`**: Relational join table tracking bookmarks/favorites.
@@ -164,3 +197,20 @@ node test-db.js
 npm run build
 ```
 *(The build script is configured with `prisma generate && next build` to guarantee compilation succeeds on Vercel platforms, bypassing caching issues).*
+
+---
+
+
+## 🤝 Contributing
+
+Contributions are welcome!  
+Fork the repository and submit a pull request with a clear description.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+Made with ❤️  
+**Team Litti Chokers**
