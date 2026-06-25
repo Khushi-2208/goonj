@@ -73,31 +73,72 @@ d:\goonj
 ## 🧩 Architecture
 
 ```mermaid
-flowchart TD
-    User((User))
-    
-    subgraph Firebase ["Firebase"]
-        Awaaz[Awaaz Frontend]
-        FirebaseAuth[Firebase Auth]
-        Firestore[Cloud Firestore]
+flowchart TB
+    %% User Discovery Flow
+    User([Citizen / User]) <-->|Voice Interview / Audio Playback| BrowserClient[Web Browser Client]
+
+    subgraph BrowserClient ["Web Browser Client"]
+        UI[Goonj UI - React/Next.js]
+        STT[Web Speech API - Speech-to-Text]
+        TTS[Web Speech API - Text-to-Speech]
+        UI --> STT
+        TTS --> UI
     end
 
-    WebSpeech[Web Speech API]
-    NextJS[Next.js API Route]
-    Gemini[Gemini LLM]
+    subgraph NextServer ["Next.js Server API Layer"]
+        MatchAPI[/api/match]
+        ChatAPI[/api/chat]
+        AdminAPI[/api/admin/schemes]
+    end
 
-    User -->|Voice/Text| Awaaz
-    Awaaz -->|Text-to-Speech| User
+    subgraph ExternalServices ["External AI & Auth Services"]
+        Clerk[Clerk Auth Service]
+        GeminiLLM[Gemini API - gemini-2.5-flash]
+        GeminiEmbed[Gemini API - gemini-embedding-2]
+    end
+
+    subgraph Database ["Supabase PostgreSQL DB"]
+        Postgres[(PostgreSQL Tables)]
+        VectorStore["Prisma Vector Table (SchemeVector)"]
+    end
+
+    %% Auth connection
+    UI <-->|Verify Session / Token| Clerk
+
+    %% User Match pipeline steps
+    UI -->|1. Submit Voice Answers| MatchAPI
     
-    Awaaz -->|Auth| FirebaseAuth
-    Awaaz -->|History| Firestore
+    MatchAPI -->|2. Structured Parsing| GeminiLLM
+    GeminiLLM -->|Demographics & Needs Query| MatchAPI
     
-    Awaaz -->|Speech-to-Text| WebSpeech
-    WebSpeech -->|Query| NextJS
+    MatchAPI -->|3. Strict Filter Query| Postgres
+    Postgres -->|Surviving Candidate Schemes| MatchAPI
     
-    Awaaz <--> NextJS
-    NextJS -->|Context + Prompt| Gemini
-    Gemini -->|Structured Data| NextJS
+    MatchAPI -->|4. Generate Query Vector| GeminiEmbed
+    GeminiEmbed -->|Query Embedding| MatchAPI
+    
+    MatchAPI -->|5. Fetch Chunk Vectors| VectorStore
+    VectorStore -->|Embeddings| MatchAPI
+    MatchAPI -->|6. Local Cosine Similarity Matching| MatchAPI
+    
+    MatchAPI -->|7. Synthesis & Translation Request| GeminiLLM
+    GeminiLLM -->|Eligible Benefits & Steps (Hindi, etc.)| MatchAPI
+    
+    MatchAPI -->|8. Matching Results JSON| UI
+    UI -->|Synthesize Speech| TTS
+
+    %% Admin Ingestion pipeline steps
+    Admin([Administrator]) -->|Guideline PDF / Web Link URL| UI
+    UI -->|Upload Document / URL| AdminAPI
+    
+    AdminAPI -->|Extract Raw Text| Parser[pdf-parse / axios crawl]
+    Parser -->|Raw Guidelines Text| AdminAPI
+    
+    AdminAPI -->|Save Metadata| Postgres
+    AdminAPI -->|Chunk Text & Embed| GeminiEmbed
+    GeminiEmbed -->|Chunk Vectors| AdminAPI
+    
+    AdminAPI -->|Save Chunks & Vectors| VectorStore
 ```
 
 ---
