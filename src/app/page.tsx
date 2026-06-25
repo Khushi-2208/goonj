@@ -18,6 +18,7 @@ interface EligibilityResult {
   benefits: string;
   stepsToApply: string[];
   documentUrl?: string | null;
+  applyUrl?: string | null;
 }
 
 interface UserProfile {
@@ -45,6 +46,7 @@ interface SavedScheme {
   casteCategories: string;
   expiryDate: string | null;
   documentUrl: string | null;
+  applyUrl: string | null;
   isActive: boolean;
 }
 
@@ -1292,18 +1294,28 @@ export default function GoonjPortal() {
                   </div>
 
                   {/* Apply URL Section */}
-                  {scheme.documentUrl && (
-                    <div className="mt-5 pt-4 border-t border-zinc-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">
-                          Application / Circular Source
-                        </span>
-                        <span className="text-xs text-zinc-300 font-semibold mt-0.5 block truncate max-w-[280px]" title={scheme.documentUrl}>
-                          {scheme.documentUrl}
-                        </span>
-                      </div>
-                      <a
-                        href={(() => {
+                  <div className="mt-5 pt-4 border-t border-zinc-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">
+                        {scheme.applyUrl ? 'Official Application Portal' : scheme.documentUrl ? 'Application / Circular Source' : 'Official Application Portal'}
+                      </span>
+                      <span className="text-xs text-zinc-300 font-semibold mt-0.5 block truncate max-w-[280px]" title={scheme.applyUrl || scheme.documentUrl || 'Search portal'}>
+                        {scheme.applyUrl || scheme.documentUrl || 'Search eligibility & apply process'}
+                      </span>
+                    </div>
+                    <a
+                      href={(() => {
+                        if (scheme.applyUrl) {
+                          const clean = scheme.applyUrl.trim();
+                          if (clean.startsWith('http://') || clean.startsWith('https://')) {
+                            return clean;
+                          }
+                          if (clean.includes('.') && !clean.includes(' ')) {
+                            return `https://${clean}`;
+                          }
+                          return `https://www.google.com/search?q=${encodeURIComponent(scheme.applyUrl)}`;
+                        }
+                        if (scheme.documentUrl) {
                           const clean = scheme.documentUrl.replace(/^(Official Portal:\s*|Official:\s*)/i, '').trim();
                           if (clean.startsWith('http://') || clean.startsWith('https://')) {
                             return clean;
@@ -1312,15 +1324,16 @@ export default function GoonjPortal() {
                             return `https://${clean}`;
                           }
                           return `https://www.google.com/search?q=${encodeURIComponent(scheme.documentUrl)}`;
-                        })()}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-teal-900/20 shrink-0 print:hidden"
-                      >
-                        <Globe size={12} /> Apply / View Portal
-                      </a>
-                    </div>
-                  )}
+                        }
+                        return `https://www.google.com/search?q=${encodeURIComponent(scheme.title + ' scheme apply online official website')}`;
+                      })()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-teal-900/20 shrink-0 print:hidden cursor-pointer"
+                    >
+                      <Globe size={12} /> Apply Now / View Portal
+                    </a>
+                  </div>
 
                   {/* Feedback widget */}
                   <div className="border-t border-zinc-900/60 mt-6 pt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400 print:hidden">

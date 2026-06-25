@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
     const casteCategories = (formData.get('casteCategories') as string) || '';
     const expiryDateStr = formData.get('expiryDate') as string | null;
     const applicationSteps = (formData.get('applicationSteps') as string) || 'Synthesized on the fly';
+    const applyUrl = formData.get('applyUrl') as string | null;
     
     // Document source options
     const linkUrl = formData.get('linkUrl') as string | null;
@@ -113,6 +114,7 @@ export async function POST(request: NextRequest) {
         expiryDate,
         applicationSteps,
         documentUrl,
+        applyUrl: applyUrl ? applyUrl.trim() : null,
       },
     });
     
@@ -186,6 +188,7 @@ export async function PUT(request: NextRequest) {
     const casteCategories = formData.get('casteCategories') as string | null;
     const expiryDateStr = formData.get('expiryDate') as string | null;
     const isActiveStr = formData.get('isActive') as string | null;
+    const applyUrl = formData.get('applyUrl') as string | null;
 
     // Ingestion source options
     const linkUrl = formData.get('linkUrl') as string | null;
@@ -203,6 +206,7 @@ export async function PUT(request: NextRequest) {
     if (casteCategories !== null) dataToUpdate.casteCategories = casteCategories;
     if (expiryDateStr !== null) dataToUpdate.expiryDate = expiryDateStr ? new Date(expiryDateStr) : null;
     if (isActiveStr !== null) dataToUpdate.isActive = isActiveStr === 'true';
+    if (applyUrl !== null) dataToUpdate.applyUrl = applyUrl ? applyUrl.trim() : null;
 
     // Update the database record
     const scheme = await prisma.scheme.update({

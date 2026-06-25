@@ -1,6 +1,7 @@
 import { PDFParse } from 'pdf-parse';
 import axios from 'axios';
 import { convert } from 'html-to-text';
+import https from 'https';
 
 /**
  * Extracts raw text content from an uploaded PDF file buffer.
@@ -27,6 +28,9 @@ export async function extractTextFromUrl(url: string): Promise<string> {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
       timeout: 10000,
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false,
+      }),
     });
     
     if (typeof response.data !== 'string') {

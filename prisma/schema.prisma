@@ -23,6 +23,7 @@ model Scheme {
   expiryDate         DateTime?
   applicationSteps   String    // Structured text describing how to apply
   documentUrl        String?   // Original uploaded filename or scraped link
+  applyUrl           String?   // Direct application link
   isActive           Boolean   @default(true)
   createdAt          DateTime  @default(now())
   savedSchemes       SavedScheme[]

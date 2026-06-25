@@ -22,6 +22,7 @@ interface Scheme {
   casteCategories: string;
   expiryDate: string | null;
   documentUrl: string | null;
+  applyUrl: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -71,6 +72,7 @@ export default function AdminDashboard() {
   const [isActive, setIsActive] = useState(true);
   const [ingestionType, setIngestionType] = useState<'pdf' | 'url'>('pdf');
   const [linkUrl, setLinkUrl] = useState('');
+  const [applyUrl, setApplyUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
 
   const fetchSchemes = async () => {
@@ -137,6 +139,7 @@ export default function AdminDashboard() {
     setCasteCategories(scheme.casteCategories);
     setIsActive(scheme.isActive);
     setExpiryDate(scheme.expiryDate ? new Date(scheme.expiryDate).toISOString().split('T')[0] : '');
+    setApplyUrl(scheme.applyUrl || '');
     // Reset ingestion file indicators for editing (only upload if they choose to)
     setFile(null);
     setLinkUrl('');
@@ -157,6 +160,7 @@ export default function AdminDashboard() {
     setExpiryDate('');
     setFile(null);
     setLinkUrl('');
+    setApplyUrl('');
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -183,6 +187,7 @@ export default function AdminDashboard() {
     if (expiryDate) formData.append('expiryDate', expiryDate);
     else formData.append('expiryDate', '');
     formData.append('isActive', isActive ? 'true' : 'false');
+    formData.append('applyUrl', applyUrl.trim());
 
     if (editId) {
       formData.append('id', editId);
@@ -734,6 +739,19 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            <div>
+              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                <Globe size={12} className="text-purple-400" /> Official Application URL (Apply Link)
+              </label>
+              <input
+                type="url"
+                value={applyUrl}
+                onChange={e => setApplyUrl(e.target.value)}
+                placeholder="e.g. https://pmsvanidhi.mohua.gov.in"
+                className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-600"
+              />
+            </div>
+
             {/* Ingestion Source Tabs */}
             <div className="pt-3 border-t border-zinc-900">
               <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">
@@ -847,6 +865,11 @@ export default function AdminDashboard() {
                       <td className="py-4 pr-4 font-semibold text-white max-w-[200px]">
                         <div className="truncate text-xs font-bold" title={sch.title}>{sch.title}</div>
                         <div className="text-[9px] text-zinc-550 truncate mt-0.5" title={sch.documentUrl || ''}>{sch.documentUrl}</div>
+                        {sch.applyUrl && (
+                          <div className="text-[9px] text-teal-400 font-semibold truncate mt-0.5" title={sch.applyUrl}>
+                            Apply URL: {sch.applyUrl}
+                          </div>
+                        )}
                       </td>
                       <td className="py-4 px-2">
                         <span className="inline-block px-1.5 py-0.5 rounded text-[8px] font-extrabold bg-zinc-900 text-zinc-450 border border-zinc-800 mr-1">

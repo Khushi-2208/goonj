@@ -264,7 +264,8 @@ Instructions:
           const dbScheme = fullyMatchingSchemes.find(s => s.id === qs.schemeId);
           return {
             ...qs,
-            documentUrl: dbScheme?.documentUrl || null
+            documentUrl: dbScheme?.documentUrl || null,
+            applyUrl: dbScheme?.applyUrl || null
           };
         });
       }

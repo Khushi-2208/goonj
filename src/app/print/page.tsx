@@ -13,6 +13,7 @@ interface EligibilityResult {
   benefits: string;
   stepsToApply: string[];
   documentUrl?: string | null;
+  applyUrl?: string | null;
 }
 
 interface UserProfile {
@@ -206,12 +207,12 @@ export default function PrintPage() {
               </ul>
             </div>
 
-            {scheme.documentUrl && (
+            {(scheme.applyUrl || scheme.documentUrl) && (
               <div className="mt-4 pt-3 border-t border-zinc-200 text-xs">
                 <span className="block font-bold text-zinc-700 uppercase text-[9px] tracking-wider mb-1">
-                  Application / Circular Source
+                  {scheme.applyUrl ? 'Official Application Portal' : 'Application / Circular Source'}
                 </span>
-                <span className="font-semibold text-zinc-800">{scheme.documentUrl}</span>
+                <span className="font-semibold text-zinc-800">{scheme.applyUrl || scheme.documentUrl}</span>
               </div>
             )}
           </div>

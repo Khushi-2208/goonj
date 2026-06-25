@@ -167,7 +167,15 @@ export async function POST(request: NextRequest) {
     );
     
     // Filter results to only return qualifying schemes to the user
-    const qualifyingSchemes = eligibilityResults.filter(r => r.isEligible);
+    const evaluatedResults = eligibilityResults.filter(r => r.isEligible);
+    const qualifyingSchemes = evaluatedResults.map(qs => {
+      const dbScheme = fullyMatchingSchemes.find(s => s.id === qs.schemeId);
+      return {
+        ...qs,
+        documentUrl: dbScheme?.documentUrl || null,
+        applyUrl: dbScheme?.applyUrl || null
+      };
+    });
     
     return NextResponse.json({
       success: true,
