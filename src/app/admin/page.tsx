@@ -84,7 +84,7 @@ export default function AdminDashboard() {
   const fetchSchemes = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/schemes');
+      const res = await fetch(`/api/admin/schemes?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success) {
         setSchemes(data.schemes);
@@ -99,7 +99,7 @@ export default function AdminDashboard() {
   const fetchAnalytics = async () => {
     try {
       setAnalyticsLoading(true);
-      const res = await fetch('/api/admin/analytics');
+      const res = await fetch(`/api/admin/analytics?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success) {
         setAnalytics(data.stats);

@@ -3,11 +3,20 @@ import { prisma } from '@/lib/db';
 import { checkIsAdmin } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
   try {
     if (!await checkIsAdmin()) {
-      return NextResponse.json({ success: false, error: 'Access denied. Admin role required.' }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: 'Access denied. Admin role required.' },
+        { 
+          status: 403,
+          headers: {
+            'Cache-Control': 'no-store, max-age=0, must-revalidate',
+          }
+        }
+      );
     }
     const totalUsers = await prisma.user.count();
     const totalSearches = await prisma.searchHistory.count();
@@ -69,25 +78,40 @@ export async function GET() {
       where: { helpful: true }
     });
 
-    return NextResponse.json({
-      success: true,
-      stats: {
-        totalUsers,
-        totalSearches,
-        languages: languageGroups.map(lg => ({ name: lg.detectedLanguage, count: lg._count._all })),
-        states: stateGroups.map(sg => ({ name: sg.state || 'Unknown', count: sg._count._all })),
-        mostSavedSchemes,
-        feedback: {
-          total: feedbackTotal,
-          helpful: feedbackHelpful,
-          percent: feedbackTotal > 0 ? Math.round((feedbackHelpful / feedbackTotal) * 100) : 100
+    return NextResponse.json(
+      {
+        success: true,
+        stats: {
+          totalUsers,
+          totalSearches,
+          languages: languageGroups.map(lg => ({ name: lg.detectedLanguage, count: lg._count._all })),
+          states: stateGroups.map(sg => ({ name: sg.state || 'Unknown', count: sg._count._all })),
+          mostSavedSchemes,
+          feedback: {
+            total: feedbackTotal,
+            helpful: feedbackHelpful,
+            percent: feedbackTotal > 0 ? Math.round((feedbackHelpful / feedbackTotal) * 100) : 100
+          }
+        }
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, max-age=0, must-revalidate',
         }
       }
-    });
+    );
   } catch (error) {
     console.error('Analytics error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve analytics';
-    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: errorMessage },
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0, must-revalidate',
+        }
+      }
+    );
   }
 }
 

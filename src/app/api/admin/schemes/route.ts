@@ -6,6 +6,7 @@ import { getEmbedding } from '@/lib/gemini';
 import { checkIsAdmin } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 /**
  * GET /api/admin/schemes
@@ -14,17 +15,37 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     if (!await checkIsAdmin()) {
-      return NextResponse.json({ success: false, error: 'Access denied. Admin role required.' }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: 'Access denied. Admin role required.' },
+        { 
+          status: 403,
+          headers: {
+            'Cache-Control': 'no-store, max-age=0, must-revalidate',
+          }
+        }
+      );
     }
     const schemes = await prisma.scheme.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    return NextResponse.json({ success: true, schemes });
+    return NextResponse.json(
+      { success: true, schemes },
+      {
+        headers: {
+          'Cache-Control': 'no-store, max-age=0, must-revalidate',
+        },
+      }
+    );
   } catch (error) {
     console.error('Error fetching schemes:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to retrieve schemes list.' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0, must-revalidate',
+        }
+      }
     );
   }
 }
