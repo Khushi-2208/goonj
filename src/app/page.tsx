@@ -716,26 +716,35 @@ export default function GoonjPortal() {
           </nav>
 
           <div className="flex items-center gap-3">
-            {user ? (
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setActiveTab('dashboard')}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                    activeTab === 'dashboard' 
-                      ? 'bg-purple-600/20 border-purple-500 text-purple-300' 
-                      : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800'
-                  }`}
-                >
-                  <User size={14} /> {user.name}
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-red-400 transition-colors"
-                  title="Logout"
-                >
-                  <LogOut size={14} />
-                </button>
-              </div>
+            {!isLoaded ? (
+              <div className="h-8 w-24 bg-zinc-900 border border-zinc-800 animate-pulse rounded-xl" />
+            ) : isSignedIn ? (
+              user ? (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setActiveTab('dashboard')}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                      activeTab === 'dashboard' 
+                        ? 'bg-purple-600/20 border-purple-500 text-purple-300' 
+                        : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800'
+                    }`}
+                  >
+                    <User size={14} /> {user.name}
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-red-400 transition-colors"
+                    title="Logout"
+                  >
+                    <LogOut size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 px-3.5 py-1.5 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded-xl text-xs font-bold animate-pulse">
+                  <Loader2 className="animate-spin text-purple-400" size={12} />
+                  <span>Syncing...</span>
+                </div>
+              )
             ) : (
               <SignInButton mode="modal">
                 <button
@@ -1373,7 +1382,12 @@ export default function GoonjPortal() {
       {/* User Dashboard Tab */}
       {activeTab === 'dashboard' && (
         <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8 md:py-12 print:hidden">
-          {user ? (
+          {!isLoaded || (isSignedIn && !user) ? (
+            <div className="flex flex-col items-center justify-center py-32 text-zinc-500">
+              <Loader2 className="animate-spin text-purple-500 mb-4" size={32} />
+              <p className="text-xs uppercase tracking-widest font-bold">Retrieving Citizen Profile...</p>
+            </div>
+          ) : user ? (
             <div className="space-y-8">
               {/* Profile details summary card */}
               <div className="glass-panel rounded-2xl p-6 border border-zinc-800 relative overflow-hidden">

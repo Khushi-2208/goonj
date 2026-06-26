@@ -1,4 +1,4 @@
-import { PDFParse } from 'pdf-parse';
+import pdf from 'pdf-parse';
 import axios from 'axios';
 import { convert } from 'html-to-text';
 import https from 'https';
@@ -8,9 +8,8 @@ import https from 'https';
  */
 export async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
   try {
-    const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
-    const textResult = await parser.getText();
-    return textResult.text || '';
+    const data = await pdf(pdfBuffer);
+    return data.text || '';
   } catch (error) {
     console.error('Error parsing PDF content:', error);
     throw new Error('Failed to parse PDF document text.');
