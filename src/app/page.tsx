@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SignInButton, useUser, useClerk } from '@clerk/nextjs';
 import { motion } from 'framer-motion';
-import { 
-  Mic, MicOff, Volume2, CheckCircle2, ChevronLeft, 
-  RotateCcw, ShieldCheck, Loader2, Sparkles, Building, Landmark, 
+import {
+  Mic, MicOff, Volume2, CheckCircle2, ChevronLeft,
+  RotateCcw, ShieldCheck, Loader2, Sparkles, Building, Landmark,
   User, LogOut, Bookmark, Share2, Printer, Check,
   HelpCircle, Eye, AlertCircle, Phone, Globe, ArrowRight, PlayCircle
 } from 'lucide-react';
@@ -20,13 +20,13 @@ interface DBUser { id: string; phone: string; name: string; createdAt: string; _
 // Replace your existing fadeUp variable with this:
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
-  visible: { 
-    opacity: 1, 
-    y: 0, 
-    transition: { 
-      duration: 0.6, 
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.6,
       ease: [0.16, 1, 0.3, 1] as [number, number, number, number] // Add 'as [number, number, number, number]'
-    } 
+    }
   }
 };
 const staggerContainer = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
@@ -79,7 +79,7 @@ export default function GoonjPortal() {
   const voiceNavRecognitionRef = useRef<any>(null);
   const synthesisRef = useRef<any>(null);
   /* eslint-enable @typescript-eslint/no-explicit-any */
-  
+
   const tempPauseVoiceNav = useRef(false);
   const voiceNavRef = useRef(voiceNav);
 
@@ -211,7 +211,7 @@ export default function GoonjPortal() {
       const res = await fetch('/api/match', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers: formAnswers }) });
       const data = await res.json();
       if (data.success) {
-        setChatProfile(data.profile); setMatchedSchemes(data.schemes || []); setActiveTab('results'); loadDashboardData(); 
+        setChatProfile(data.profile); setMatchedSchemes(data.schemes || []); setActiveTab('results'); loadDashboardData();
       } else { alert(data.error || 'Failed to find matching schemes.'); }
     } catch (err) { console.error(err); alert('Error connecting to match engine.'); } finally { setIsMatchingLoading(false); }
   };
@@ -324,7 +324,7 @@ export default function GoonjPortal() {
         else if (transcript.includes('logout') || transcript.includes('log out')) { handleLogout(); }
         else if (transcript.includes('print') || transcript.includes('download')) { if (matchedSchemes.length > 0) handleDownloadReport(matchedSchemes[0]); }
       };
-      navRec.onerror = () => {};
+      navRec.onerror = () => { };
       navRec.onend = () => { if (voiceNav && !tempPauseVoiceNav.current) { try { navRec.start(); } catch { } } };
       try { navRec.start(); voiceNavRecognitionRef.current = navRec; } catch { }
     } else {
@@ -349,9 +349,26 @@ export default function GoonjPortal() {
           </div>
 
           <nav className={`hidden md:flex items-center gap-6 text-sm font-bold ${activeTab === 'home' ? 'text-slate-300' : 'text-slate-500'}`}>
-            <button onClick={() => setActiveTab('home')} className={`transition-colors ${activeTab === 'home' ? 'text-white' : 'hover:text-slate-900'}`}>Overview</button>
-            <button onClick={handleStartChat} className={`transition-colors ${activeTab === 'chat' ? (activeTab === 'home' ? 'text-white' : 'text-orange-500') : (activeTab === 'home' ? 'hover:text-white' : 'hover:text-orange-500')}`}>Voice Finder</button>
-            <a href="/admin" className={`transition-colors ${activeTab === 'home' ? 'hover:text-white' : 'hover:text-slate-900'}`}>Admin Portal</a>
+            <button
+              onClick={() => setActiveTab('home')}
+              className={`transition-colors ${activeTab === 'home' ? 'text-white' : 'hover:text-slate-900'}`}
+            >
+              Overview
+            </button>
+
+            <button
+              onClick={handleStartChat}
+              className={`transition-colors ${activeTab === 'chat' ? 'text-orange-500' : (activeTab === 'home' ? 'hover:text-white' : 'hover:text-orange-500')}`}
+            >
+              Voice Finder
+            </button>
+
+            <a
+              href="/admin"
+              className={`transition-colors ${activeTab === 'home' ? 'hover:text-white' : 'hover:text-slate-900'}`}
+            >
+              Admin Portal
+            </a>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -390,9 +407,9 @@ export default function GoonjPortal() {
           <div className="relative w-full h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden pt-12 pb-6">
             {/* Background Image & Overlays */}
             <div className="absolute inset-0 z-0">
-              <img 
-                src="https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&q=80" 
-                alt="Citizens looking forward" 
+              <img
+                src="https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&q=80"
+                alt="Citizens looking forward"
                 className="w-full h-full object-cover scale-105"
               />
               <div className="absolute inset-0 bg-slate-950/85" />
@@ -400,21 +417,21 @@ export default function GoonjPortal() {
             </div>
 
             {/* Hero Content (Paddings and margins tightened) */}
-            <motion.div 
+            <motion.div
               initial="hidden" animate="visible" variants={staggerContainer}
               className="relative z-10 max-w-5xl mx-auto px-6 text-center flex flex-col items-center justify-center h-full"
             >
               <motion.span variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-white/10 border border-white/20 text-orange-400 mb-6 backdrop-blur-md">
                 <Sparkles size={14} /> Built for the citizens of India
               </motion.span>
-              
+
               <motion.h1 variants={fadeUp} className="text-4xl md:text-5xl lg:text-7xl font-black tracking-tight text-white leading-[1.1] mb-4 drop-shadow-lg">
-                Discover your <br/>
+                Discover your <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-orange-300 to-amber-200">
                   Entitlements
                 </span>
               </motion.h1>
-              
+
               <motion.p variants={fadeUp} className="text-slate-300 text-base md:text-xl max-w-2xl leading-relaxed mb-8 font-medium">
                 Government benefits, explained in your language. Speak naturally and instantly find every scheme you qualify for.
               </motion.p>
@@ -454,7 +471,7 @@ export default function GoonjPortal() {
               <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">How Goonj Works</h2>
               <p className="text-slate-500 mt-4 text-lg font-medium">A seamless, AI-powered civic experience.</p>
             </div>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
                 { step: "1", title: "Speak In Your Language", desc: "Just describe your situation using the microphone. Talk naturally in Hindi, Bhojpuri, Tamil, or any regional tongue." },
@@ -508,12 +525,12 @@ export default function GoonjPortal() {
             </h2>
             <div className="flex flex-wrap gap-4 justify-center max-w-4xl mx-auto">
               {[
-                "Hindi (हिन्दी)", "English", "Bhojpuri (भोजपुरी)", "Bengali (বাংলা)", 
-                "Tamil (தமிழ்)", "Telugu (తెలుగు)", "Marathi (मराठी)", "Gujarati (ગુજરાતી)", 
+                "Hindi (हिन्दी)", "English", "Bhojpuri (भोजपुरी)", "Bengali (বাংলা)",
+                "Tamil (தமிழ்)", "Telugu (తెలుగు)", "Marathi (मराठी)", "Gujarati (ગુજરાતી)",
                 "Kannada (ಕನ್ನಡ)", "Malayalam (മലയാളം)", "Punjabi (ਪੰਜਾਬി)", "Odia (ଓଡ଼ିଆ)",
                 "Any Regional Language..."
               ].map((lang, idx) => (
-                <span 
+                <span
                   key={idx}
                   className="px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-orange-400 text-sm font-bold cursor-default transition-all hover:scale-105 shadow-sm"
                 >
@@ -542,7 +559,7 @@ export default function GoonjPortal() {
             <div className="flex justify-between items-center border-b border-slate-200 pb-5 mb-8">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
-                  <Mic size={18} /> 
+                  <Mic size={18} />
                 </div>
                 <span className="font-black text-lg text-slate-900">Voice Assistant</span>
                 <span className="text-slate-300 px-2">/</span>
@@ -565,79 +582,77 @@ export default function GoonjPortal() {
               </div>
             )}
 
-{/* Phase 1: Speak to Detect Language */}
-{chatTurn === 1 && (
-  <div className="flex-1 flex flex-col items-center justify-center py-3 text-center">
-    <div className="max-w-md mx-auto space-y-6">
-      <div className="space-y-3">
-        <div className="w-10 h-1 bg-orange-500 rounded-full mx-auto" />
-        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-          बोलकर शुरू करें<br/>Speak to Start
-        </h2>
-        <p className="text-slate-600 text-sm leading-relaxed bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/80 shadow-sm font-medium">
-          अपनी स्थानीय भाषा में कुछ भी कहें (जैसे "नमस्ते") ताकि हम आपकी भाषा समझ सकें।
-          <br />
-          <span className="text-slate-500 text-xs">
-            Speak anything in your mother tongue so we can configure the interface for you.
-          </span>
-        </p>
-      </div>
+            {/* Phase 1: Speak to Detect Language */}
+            {chatTurn === 1 && (
+              <div className="flex-1 flex flex-col items-center justify-center py-3 text-center">
+                <div className="max-w-md mx-auto space-y-6">
+                  <div className="space-y-3">
+                    <div className="w-10 h-1 bg-orange-500 rounded-full mx-auto" />
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                      बोलकर शुरू करें<br />Speak to Start
+                    </h2>
+                    <p className="text-slate-600 text-sm leading-relaxed bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/80 shadow-sm font-medium">
+                      अपनी स्थानीय भाषा में कुछ भी कहें (जैसे "नमस्ते") ताकि हम आपकी भाषा समझ सकें।
+                      <br />
+                      <span className="text-slate-500 text-xs">
+                        Speak anything in your mother tongue so we can configure the interface for you.
+                      </span>
+                    </p>
+                  </div>
 
-      <div className="flex flex-col items-center justify-center gap-3 py-2">
-        <div className="relative">
-          <div className={`absolute inset-0 rounded-full blur-xl scale-110 transition-opacity ${
-            isRecording && currentlyRecordingField === null ? 'bg-red-400/40 opacity-100' : 'bg-orange-400/30 opacity-70'
-          }`} />
-          <button
-            onClick={() => toggleRecordingForField(null)}
-            disabled={!speechSupported || isChatLoading}
-            className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-xl ring-4 ring-white ${
-              isRecording && currentlyRecordingField === null
-                ? 'bg-gradient-to-br from-red-500 to-red-600 text-white animate-voice-pulse'
-                : 'bg-gradient-to-br from-slate-900 to-slate-700 text-white hover:from-orange-500 hover:to-orange-600 hover:scale-110 disabled:opacity-50 disabled:hover:scale-100'
-            }`}
-          >
-            {isRecording && currentlyRecordingField === null ? <MicOff size={30} /> : <Mic size={30} />}
-          </button>
-        </div>
-        {isRecording && currentlyRecordingField === null ? (
-          <span className="text-xs font-black text-red-500 animate-pulse uppercase tracking-widest bg-red-50 px-3 py-1.5 rounded-full border border-red-100 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Listening... Speak now
-          </span>
-        ) : (
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-            Tap the mic to begin
-          </span>
-        )}
-      </div>
+                  <div className="flex flex-col items-center justify-center gap-3 py-2">
+                    <div className="relative">
+                      <div className={`absolute inset-0 rounded-full blur-xl scale-110 transition-opacity ${isRecording && currentlyRecordingField === null ? 'bg-red-400/40 opacity-100' : 'bg-orange-400/30 opacity-70'
+                        }`} />
+                      <button
+                        onClick={() => toggleRecordingForField(null)}
+                        disabled={!speechSupported || isChatLoading}
+                        className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-xl ring-4 ring-white ${isRecording && currentlyRecordingField === null
+                            ? 'bg-gradient-to-br from-red-500 to-red-600 text-white animate-voice-pulse'
+                            : 'bg-gradient-to-br from-slate-900 to-slate-700 text-white hover:from-orange-500 hover:to-orange-600 hover:scale-110 disabled:opacity-50 disabled:hover:scale-100'
+                          }`}
+                      >
+                        {isRecording && currentlyRecordingField === null ? <MicOff size={30} /> : <Mic size={30} />}
+                      </button>
+                    </div>
+                    {isRecording && currentlyRecordingField === null ? (
+                      <span className="text-xs font-black text-red-500 animate-pulse uppercase tracking-widest bg-red-50 px-3 py-1.5 rounded-full border border-red-100 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Listening... Speak now
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                        Tap the mic to begin
+                      </span>
+                    )}
+                  </div>
 
-      <div className="flex items-center gap-3 max-w-sm mx-auto">
-        <div className="flex-1 h-px bg-slate-200" />
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">or</span>
-        <div className="flex-1 h-px bg-slate-200" />
-      </div>
+                  <div className="flex items-center gap-3 max-w-sm mx-auto">
+                    <div className="flex-1 h-px bg-slate-200" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">or</span>
+                    <div className="flex-1 h-px bg-slate-200" />
+                  </div>
 
-      <div className="flex gap-2 max-w-sm mx-auto w-full">
-        <input
-          type="text"
-          value={chatInput}
-          onChange={e => setChatInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') handleSendAnswer(); }}
-          placeholder="Or type greeting here..."
-          className="flex-1 bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-300 shadow-sm font-bold transition-all"
-          disabled={isChatLoading || isRecording}
-        />
-        <button
-          onClick={() => handleSendAnswer()}
-          disabled={!chatInput.trim() || isChatLoading || isRecording}
-          className="px-5 bg-gradient-to-br from-slate-900 to-slate-700 hover:from-orange-500 hover:to-orange-600 disabled:from-slate-300 disabled:to-slate-300 text-white font-bold rounded-xl text-sm flex items-center justify-center transition-all shadow-md"
-        >
-          {isChatLoading ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+                  <div className="flex gap-2 max-w-sm mx-auto w-full">
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={e => setChatInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleSendAnswer(); }}
+                      placeholder="Or type greeting here..."
+                      className="flex-1 bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-300 shadow-sm font-bold transition-all"
+                      disabled={isChatLoading || isRecording}
+                    />
+                    <button
+                      onClick={() => handleSendAnswer()}
+                      disabled={!chatInput.trim() || isChatLoading || isRecording}
+                      className="px-5 bg-gradient-to-br from-slate-900 to-slate-700 hover:from-orange-500 hover:to-orange-600 disabled:from-slate-300 disabled:to-slate-300 text-white font-bold rounded-xl text-sm flex items-center justify-center transition-all shadow-md"
+                    >
+                      {isChatLoading ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Phase 2: Show Form */}
             {chatTurn === 2 && (
@@ -687,11 +702,10 @@ export default function GoonjPortal() {
                           type="button"
                           onClick={() => toggleRecordingForField(i)}
                           disabled={isMatchingLoading || !speechSupported}
-                          className={`p-3.5 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-sm border ${
-                            isRecording && currentlyRecordingField === i
+                          className={`p-3.5 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-sm border ${isRecording && currentlyRecordingField === i
                               ? 'bg-red-500 text-white border-red-600 animate-pulse'
                               : 'bg-slate-900 text-white border-slate-900 hover:bg-orange-500 hover:border-orange-500'
-                          }`}
+                            }`}
                         >
                           {isRecording && currentlyRecordingField === i ? <MicOff size={18} /> : <Mic size={18} />}
                         </button>
@@ -930,7 +944,7 @@ export default function GoonjPortal() {
                   <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
                     <Bookmark size={24} className="text-orange-500" /> Saved Welfare Schemes
                   </h3>
-                  
+
                   {isDashLoading ? (
                     <div className="py-20 flex justify-center text-slate-400">
                       <Loader2 className="animate-spin text-orange-500" size={32} />
@@ -957,13 +971,13 @@ export default function GoonjPortal() {
                           <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{sch.ministry || 'State'}</span>
                             <button onClick={async () => {
-                                stopSpeaking(); setIsChatLoading(true); setActiveTab('chat');
-                                try {
-                                  const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `I need information on ${sch.title}`, turnNumber: 8, profile: { state: sch.state } }) });
-                                  const data = await res.json();
-                                  if (data.success) { setMatchedSchemes(data.schemes || []); setChatMessages([{ role: 'assistant', content: `Here is the assessment details for ${sch.title}.` }]); setActiveTab('results'); }
-                                } catch (e) { setActiveTab('dashboard'); } finally { setIsChatLoading(false); }
-                              }}
+                              stopSpeaking(); setIsChatLoading(true); setActiveTab('chat');
+                              try {
+                                const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: `I need information on ${sch.title}`, turnNumber: 8, profile: { state: sch.state } }) });
+                                const data = await res.json();
+                                if (data.success) { setMatchedSchemes(data.schemes || []); setChatMessages([{ role: 'assistant', content: `Here is the assessment details for ${sch.title}.` }]); setActiveTab('results'); }
+                              } catch (e) { setActiveTab('dashboard'); } finally { setIsChatLoading(false); }
+                            }}
                               className="text-sm text-slate-900 hover:text-white hover:bg-orange-500 font-black flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-xl transition-all"
                             >
                               <Eye size={16} /> View
