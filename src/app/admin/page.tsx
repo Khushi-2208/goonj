@@ -6,39 +6,11 @@ import { useUser, SignInButton, useClerk } from '@clerk/nextjs';
 import { 
   Upload, Link as LinkIcon, Calendar, Check, Trash2, RefreshCw, 
   FileText, ArrowLeft, Loader2, Edit2, Users, Search, Heart, 
-  Building, Globe, MapPin, X, AlertCircle, ShieldCheck
+  Building, Globe, MapPin, X, AlertCircle, ShieldCheck, Landmark
 } from 'lucide-react';
 
-interface Scheme {
-  id: string;
-  title: string;
-  ministry: string | null;
-  state: string;
-  minAge: number | null;
-  maxAge: number | null;
-  genderRestriction: string;
-  incomeCeiling: number | null;
-  occupations: string;
-  casteCategories: string;
-  expiryDate: string | null;
-  documentUrl: string | null;
-  applyUrl: string | null;
-  isActive: boolean;
-  createdAt: string;
-}
-
-interface AnalyticsStats {
-  totalUsers: number;
-  totalSearches: number;
-  languages: { name: string; count: number }[];
-  states: { name: string; count: number }[];
-  mostSavedSchemes: { id: string; title: string; savedCount: number; feedbackCount: number }[];
-  feedback: {
-    total: number;
-    helpful: number;
-    percent: number;
-  };
-}
+interface Scheme { id: string; title: string; ministry: string | null; state: string; minAge: number | null; maxAge: number | null; genderRestriction: string; incomeCeiling: number | null; occupations: string; casteCategories: string; expiryDate: string | null; documentUrl: string | null; applyUrl: string | null; isActive: boolean; createdAt: string; }
+interface AnalyticsStats { totalUsers: number; totalSearches: number; languages: { name: string; count: number }[]; states: { name: string; count: number }[]; mostSavedSchemes: { id: string; title: string; savedCount: number; feedbackCount: number }[]; feedback: { total: number; helpful: number; percent: number; }; }
 
 export default function AdminDashboard() {
   const { isLoaded, isSignedIn, user } = useUser();
@@ -55,283 +27,94 @@ export default function AdminDashboard() {
   const [purging, setPurging] = useState(false);
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
 
-  // Edit Mode states
   const [editId, setEditId] = useState<string | null>(null);
-
-  // Form states
-  const [title, setTitle] = useState('');
-  const [ministry, setMinistry] = useState('');
-  const [state, setState] = useState('Central');
-  const [minAge, setMinAge] = useState('');
-  const [maxAge, setMaxAge] = useState('');
-  const [genderRestriction, setGenderRestriction] = useState('All');
-  const [incomeCeiling, setIncomeCeiling] = useState('');
-  const [occupations, setOccupations] = useState('');
-  const [casteCategories, setCasteCategories] = useState('General, OBC, SC, ST');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [isActive, setIsActive] = useState(true);
+  const [title, setTitle] = useState(''); const [ministry, setMinistry] = useState(''); const [state, setState] = useState('Central');
+  const [minAge, setMinAge] = useState(''); const [maxAge, setMaxAge] = useState('');
+  const [genderRestriction, setGenderRestriction] = useState('All'); const [incomeCeiling, setIncomeCeiling] = useState('');
+  const [occupations, setOccupations] = useState(''); const [casteCategories, setCasteCategories] = useState('General, OBC, SC, ST');
+  const [expiryDate, setExpiryDate] = useState(''); const [isActive, setIsActive] = useState(true);
   const [ingestionType, setIngestionType] = useState<'pdf' | 'url'>('pdf');
-  const [linkUrl, setLinkUrl] = useState('');
-  const [applyUrl, setApplyUrl] = useState('');
+  const [linkUrl, setLinkUrl] = useState(''); const [applyUrl, setApplyUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  
   const totalPages = Math.ceil(schemes.length / itemsPerPage);
   const activePage = Math.min(currentPage, Math.max(totalPages, 1));
   const startIndex = (activePage - 1) * itemsPerPage;
   const paginatedSchemes = schemes.slice(startIndex, startIndex + itemsPerPage);
 
   const fetchSchemes = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch(`/api/admin/schemes?t=${Date.now()}`, { cache: 'no-store' });
-      const data = await res.json();
-      if (data.success) {
-        setSchemes(data.schemes);
-      } else {
-        showNotification(data.error || 'Failed to retrieve schemes list.', true);
-      }
-    } catch (err) {
-      console.error(err);
-      const errMsg = err instanceof Error ? err.message : String(err);
-      showNotification(`Network/Parse Error: ${errMsg}`, true);
-    } finally {
-      setLoading(false);
-    }
+    try { setLoading(true); const res = await fetch(`/api/admin/schemes?t=${Date.now()}`, { cache: 'no-store' }); const data = await res.json(); if (data.success) { setSchemes(data.schemes); } else { showNotification(data.error || 'Failed.', true); } } catch (err) { showNotification(`Network Error`, true); } finally { setLoading(false); }
   };
 
   const fetchAnalytics = async () => {
-    try {
-      setAnalyticsLoading(true);
-      const res = await fetch(`/api/admin/analytics?t=${Date.now()}`, { cache: 'no-store' });
-      const data = await res.json();
-      if (data.success) {
-        setAnalytics(data.stats);
-      } else {
-        showNotification(data.error || 'Failed to retrieve analytics data.', true);
-      }
-    } catch (err) {
-      console.error(err);
-      const errMsg = err instanceof Error ? err.message : String(err);
-      showNotification(`Network/Parse Error: ${errMsg}`, true);
-    } finally {
-      setAnalyticsLoading(false);
-    }
+    try { setAnalyticsLoading(true); const res = await fetch(`/api/admin/analytics?t=${Date.now()}`, { cache: 'no-store' }); const data = await res.json(); if (data.success) { setAnalytics(data.stats); } else { showNotification(data.error || 'Failed.', true); } } catch (err) { showNotification(`Network Error`, true); } finally { setAnalyticsLoading(false); }
   };
 
   const isAdmin = user?.publicMetadata?.role === 'admin';
 
-  useEffect(() => {
-    if (isLoaded && isSignedIn && isAdmin) {
-      fetchSchemes();
-      fetchAnalytics();
-    }
-  }, [isLoaded, isSignedIn, isAdmin]);
+  useEffect(() => { if (isLoaded && isSignedIn && isAdmin) { fetchSchemes(); fetchAnalytics(); } }, [isLoaded, isSignedIn, isAdmin]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
-    }
-  };
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files.length > 0) setFile(e.target.files[0]); };
+  const showNotification = (text: string, isError = false) => { setMessage({ text, isError }); setTimeout(() => setMessage(null), 6000); };
 
-  const showNotification = (text: string, isError = false) => {
-    setMessage({ text, isError });
-    setTimeout(() => setMessage(null), 6000);
-  };
-
-  // Switch to Edit Mode
-  const handleEditClick = (scheme: Scheme) => {
-    setEditId(scheme.id);
-    setTitle(scheme.title);
-    setMinistry(scheme.ministry || '');
-    setState(scheme.state);
-    setMinAge(scheme.minAge !== null ? scheme.minAge.toString() : '');
-    setMaxAge(scheme.maxAge !== null ? scheme.maxAge.toString() : '');
-    setGenderRestriction(scheme.genderRestriction);
-    setIncomeCeiling(scheme.incomeCeiling !== null ? scheme.incomeCeiling.toString() : '');
-    setOccupations(scheme.occupations);
-    setCasteCategories(scheme.casteCategories);
-    setIsActive(scheme.isActive);
-    setExpiryDate(scheme.expiryDate ? new Date(scheme.expiryDate).toISOString().split('T')[0] : '');
-    setApplyUrl(scheme.applyUrl || '');
-    // Reset ingestion file indicators for editing (only upload if they choose to)
-    setFile(null);
-    setLinkUrl('');
-  };
-
-  const handleCancelEdit = () => {
-    setEditId(null);
-    setTitle('');
-    setMinistry('');
-    setState('Central');
-    setMinAge('');
-    setMaxAge('');
-    setGenderRestriction('All');
-    setIncomeCeiling('');
-    setOccupations('');
-    setCasteCategories('General, OBC, SC, ST');
-    setIsActive(true);
-    setExpiryDate('');
-    setFile(null);
-    setLinkUrl('');
-    setApplyUrl('');
-  };
+  const handleEditClick = (scheme: Scheme) => { setEditId(scheme.id); setTitle(scheme.title); setMinistry(scheme.ministry || ''); setState(scheme.state); setMinAge(scheme.minAge !== null ? scheme.minAge.toString() : ''); setMaxAge(scheme.maxAge !== null ? scheme.maxAge.toString() : ''); setGenderRestriction(scheme.genderRestriction); setIncomeCeiling(scheme.incomeCeiling !== null ? scheme.incomeCeiling.toString() : ''); setOccupations(scheme.occupations); setCasteCategories(scheme.casteCategories); setIsActive(scheme.isActive); setExpiryDate(scheme.expiryDate ? new Date(scheme.expiryDate).toISOString().split('T')[0] : ''); setApplyUrl(scheme.applyUrl || ''); setFile(null); setLinkUrl(''); };
+  const handleCancelEdit = () => { setEditId(null); setTitle(''); setMinistry(''); setState('Central'); setMinAge(''); setMaxAge(''); setGenderRestriction('All'); setIncomeCeiling(''); setOccupations(''); setCasteCategories('General, OBC, SC, ST'); setIsActive(true); setExpiryDate(''); setFile(null); setLinkUrl(''); setApplyUrl(''); };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !state.trim()) {
-      showNotification('Scheme Title and State are required.', true);
-      return;
-    }
-
+    if (!title.trim() || !state.trim()) { showNotification('Title and State are required.', true); return; }
     setSubmitting(true);
     const formData = new FormData();
-    formData.append('title', title);
-    formData.append('ministry', ministry);
-    formData.append('state', state);
-    if (minAge) formData.append('minAge', minAge);
-    else formData.append('minAge', '');
-    if (maxAge) formData.append('maxAge', maxAge);
-    else formData.append('maxAge', '');
+    formData.append('title', title); formData.append('ministry', ministry); formData.append('state', state);
+    if (minAge) formData.append('minAge', minAge); else formData.append('minAge', '');
+    if (maxAge) formData.append('maxAge', maxAge); else formData.append('maxAge', '');
     formData.append('genderRestriction', genderRestriction);
-    if (incomeCeiling) formData.append('incomeCeiling', incomeCeiling);
-    else formData.append('incomeCeiling', '');
-    formData.append('occupations', occupations);
-    formData.append('casteCategories', casteCategories);
-    if (expiryDate) formData.append('expiryDate', expiryDate);
-    else formData.append('expiryDate', '');
-    formData.append('isActive', isActive ? 'true' : 'false');
-    formData.append('applyUrl', applyUrl.trim());
+    if (incomeCeiling) formData.append('incomeCeiling', incomeCeiling); else formData.append('incomeCeiling', '');
+    formData.append('occupations', occupations); formData.append('casteCategories', casteCategories);
+    if (expiryDate) formData.append('expiryDate', expiryDate); else formData.append('expiryDate', '');
+    formData.append('isActive', isActive ? 'true' : 'false'); formData.append('applyUrl', applyUrl.trim());
+    if (editId) formData.append('id', editId);
 
-    if (editId) {
-      formData.append('id', editId);
-    }
-
-    // Ingestion options (only optional in edit mode, required in create mode)
-    if (ingestionType === 'pdf' && file) {
-      formData.append('file', file);
-    } else if (ingestionType === 'url' && linkUrl.trim()) {
-      formData.append('linkUrl', linkUrl.trim());
-    } else if (!editId) {
-      showNotification('Please supply either a guideline PDF file or a webpage link URL.', true);
-      setSubmitting(false);
-      return;
-    }
+    if (ingestionType === 'pdf' && file) formData.append('file', file);
+    else if (ingestionType === 'url' && linkUrl.trim()) formData.append('linkUrl', linkUrl.trim());
+    else if (!editId) { showNotification('Please supply PDF or URL.', true); setSubmitting(false); return; }
 
     try {
-      const url = '/api/admin/schemes';
-      const method = editId ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        body: formData,
-      });
+      const res = await fetch('/api/admin/schemes', { method: editId ? 'PUT' : 'POST', body: formData });
       const data = await res.json();
-      if (data.success) {
-        showNotification(
-          editId 
-            ? 'Scheme successfully updated!' 
-            : `Scheme successfully ingested! Processed ${data.chunksProcessed} vector chunks.`
-        );
-        handleCancelEdit();
-        fetchSchemes();
-        fetchAnalytics();
-      } else {
-        showNotification(data.error || 'Failed to process scheme.', true);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An error occurred during save.';
-      showNotification(message, true);
-    } finally {
-      setSubmitting(false);
-    }
+      if (data.success) { showNotification(editId ? 'Updated!' : `Ingested! Chunks: ${data.chunksProcessed}`); handleCancelEdit(); fetchSchemes(); fetchAnalytics(); } else { showNotification(data.error, true); }
+    } catch (err) { showNotification('Error during save.', true); } finally { setSubmitting(false); }
   };
 
   const handleDeleteScheme = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this scheme? All metadata and vector index will be lost permanently.')) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/admin/schemes?id=${id}`, {
-        method: 'DELETE',
-      });
-      const data = await res.json();
-      if (data.success) {
-        showNotification('Scheme deleted successfully.');
-        fetchSchemes();
-        fetchAnalytics();
-      } else {
-        showNotification(data.error || 'Failed to delete scheme.', true);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An error occurred.';
-      showNotification(message, true);
-    }
+    if (!confirm('Delete this scheme permanently?')) return;
+    try { const res = await fetch(`/api/admin/schemes?id=${id}`, { method: 'DELETE' }); const data = await res.json(); if (data.success) { showNotification('Deleted.'); fetchSchemes(); fetchAnalytics(); } else { showNotification(data.error, true); } } catch (err) { showNotification('Error.', true); }
   };
 
   const handlePurgeExpired = async () => {
     setPurging(true);
-    try {
-      const res = await fetch('/api/admin/purge', {
-        method: 'POST',
-      });
-      const data = await res.json();
-      if (data.success) {
-        showNotification(data.message);
-        fetchSchemes();
-        fetchAnalytics();
-      } else {
-        showNotification(data.error || 'Failed to run database clean-up.', true);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An error occurred.';
-      showNotification(message, true);
-    } finally {
-      setPurging(false);
-    }
+    try { const res = await fetch('/api/admin/purge', { method: 'POST' }); const data = await res.json(); if (data.success) { showNotification(data.message); fetchSchemes(); fetchAnalytics(); } else { showNotification(data.error, true); } } catch (err) { showNotification('Error.', true); } finally { setPurging(false); }
   };
 
-  const indianStates = [
-    'Central', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 
-    'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 
-    'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 
-    'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'
-  ];
+  const indianStates = ['Central', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'];
 
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-zinc-400">
-        <Loader2 className="animate-spin text-purple-500 mb-4" size={36} />
-        <p className="text-xs uppercase tracking-widest font-bold">Verifying Session...</p>
-      </div>
-    );
-  }
+  if (!isLoaded) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><Loader2 className="animate-spin text-slate-900" size={40} /></div>;
 
   if (!isSignedIn) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl" />
-
-        <div className="glass-panel max-w-md w-full rounded-3xl p-8 border border-zinc-900 shadow-2xl relative z-10 text-center">
-          <span className="inline-flex p-3 bg-purple-950/60 border border-purple-800/40 rounded-2xl text-purple-400 mb-6">
-            <ShieldCheck size={32} />
-          </span>
-          <h2 className="text-2xl font-black text-white tracking-tight mb-2">Admin Dashboard Secure Entry</h2>
-          <p className="text-zinc-400 text-xs leading-relaxed mb-8">
-            Access to this administrative control system is restricted. Please sign in with Clerk to verify your identity.
-          </p>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+        <div className="bg-white max-w-md w-full rounded-3xl p-10 border border-slate-200 shadow-2xl text-center border-t-4 border-t-slate-900">
+          <ShieldCheck size={48} className="text-slate-900 mx-auto mb-6" />
+          <h2 className="text-3xl font-black text-slate-900 mb-3">Admin Portal</h2>
+          <p className="text-slate-500 text-sm font-medium mb-8">Access to this environment is highly restricted.</p>
           <SignInButton mode="modal">
-            <button className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-900/30 transition-all text-xs uppercase tracking-wider">
-              Sign In with Clerk
-            </button>
+            <button className="w-full py-4 bg-slate-900 hover:bg-black text-white font-black rounded-xl shadow-lg transition-all text-sm">Authenticate Identity</button>
           </SignInButton>
-          <div className="mt-6">
-            <Link href="/" className="inline-flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors text-xs font-semibold">
-              <ArrowLeft size={12} /> Back to Goonj Portal
-            </Link>
-          </div>
+          <Link href="/" className="mt-8 inline-flex items-center gap-2 text-slate-400 hover:text-slate-900 font-bold text-sm">
+            <ArrowLeft size={16} /> Back to Goonj Portal
+          </Link>
         </div>
       </div>
     );
@@ -339,94 +122,30 @@ export default function AdminDashboard() {
 
   if (isSignedIn && !isAdmin) {
     const handleVerifySecret = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!secretKey.trim()) return;
-      setVerifyingSecret(true);
-      setSecretError(null);
+      e.preventDefault(); if (!secretKey.trim()) return; setVerifyingSecret(true); setSecretError(null);
       try {
-        const res = await fetch('/api/admin/verify-secret', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ secretKey })
-        });
+        const res = await fetch('/api/admin/verify-secret', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secretKey }) });
         const data = await res.json();
-        if (data.success) {
-          if (user) {
-            await user.reload();
-          }
-        } else {
-          setSecretError(data.error || 'Verification failed.');
-        }
-      } catch (err) {
-        setSecretError('Network error. Failed to verify secret.');
-      } finally {
-        setVerifyingSecret(false);
-      }
+        if (data.success) { if (user) await user.reload(); } else { setSecretError(data.error); }
+      } catch (err) { setSecretError('Network error.'); } finally { setVerifyingSecret(false); }
     };
 
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl" />
-
-        <div className="glass-panel max-w-md w-full rounded-3xl p-8 border border-zinc-900 shadow-2xl relative z-10">
-          <div className="text-center mb-6">
-            <span className="inline-flex p-3 bg-teal-950/60 border border-teal-800/40 rounded-2xl text-teal-400 mb-4 animate-pulse">
-              <AlertCircle size={32} />
-            </span>
-            <h2 className="text-2xl font-black text-white tracking-tight">Specify Admin Passcode</h2>
-            <p className="text-zinc-400 text-xs leading-relaxed mt-2">
-              Your account is not configured as an administrator. Enter the secret key from your environment settings to promote this account.
-            </p>
-          </div>
-
-          {secretError && (
-            <div className="p-3 bg-red-950/20 border border-red-900/50 rounded-xl flex items-center gap-2 text-red-300 text-xs mb-4">
-              <AlertCircle size={14} className="shrink-0" />
-              <span>{secretError}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleVerifySecret} className="space-y-4">
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">
-                Admin Secret Key
-              </label>
-              <input
-                type="password"
-                value={secretKey}
-                onChange={e => setSecretKey(e.target.value)}
-                placeholder="Enter ADMIN_SECRET_KEY"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-xs md:text-sm text-white focus:outline-none focus:border-purple-600 tracking-widest text-center"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={verifyingSecret}
-              className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-bold rounded-xl shadow-lg transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2"
-            >
-              {verifyingSecret ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" /> Verifying Passcode...
-                </>
-              ) : (
-                'Verify & Authorize'
-              )}
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+        <div className="bg-white max-w-md w-full rounded-3xl p-10 border border-slate-200 shadow-2xl border-t-4 border-t-orange-500">
+          <AlertCircle size={48} className="text-orange-500 mx-auto mb-6" />
+          <h2 className="text-2xl font-black text-slate-900 text-center mb-3">Authorization Required</h2>
+          <p className="text-slate-500 text-sm text-center font-medium mb-8">Enter the secure environment passcode to grant administrative privileges.</p>
+          {secretError && <div className="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-bold mb-6">{secretError}</div>}
+          <form onSubmit={handleVerifySecret} className="space-y-6">
+            <input type="password" value={secretKey} onChange={e => setSecretKey(e.target.value)} placeholder="Passcode" className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-4 text-center font-mono font-bold text-slate-900 focus:ring-2 focus:ring-slate-900 focus:outline-none" required />
+            <button type="submit" disabled={verifyingSecret} className="w-full py-4 bg-slate-900 hover:bg-black text-white font-black rounded-xl shadow-lg transition-all text-sm flex justify-center items-center gap-2">
+              {verifyingSecret ? <Loader2 size={16} className="animate-spin" /> : 'Authorize Key'}
             </button>
           </form>
-
-          <div className="mt-6 flex justify-between items-center text-xs">
-            <Link href="/" className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition-colors font-semibold">
-              <ArrowLeft size={12} /> Back to Goonj
-            </Link>
-            <button
-              onClick={() => signOut()}
-              className="text-zinc-500 hover:text-red-400 transition-colors font-semibold uppercase tracking-wider text-[10px]"
-            >
-              Switch Account
-            </button>
+          <div className="mt-8 pt-6 border-t border-slate-100 flex justify-between font-bold text-sm text-slate-400">
+            <Link href="/" className="hover:text-slate-900 flex items-center gap-2"><ArrowLeft size={16}/> Back</Link>
+            <button onClick={() => signOut()} className="hover:text-red-500">Switch Account</button>
           </div>
         </div>
       </div>
@@ -434,552 +153,276 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6 md:p-12 max-w-6xl mx-auto">
-      {/* Top Bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 pb-6 border-b border-zinc-900">
-        <div>
-          <Link href="/" className="inline-flex items-center gap-2 text-zinc-400 hover:text-zinc-200 transition-colors mb-2 text-xs font-bold uppercase tracking-wider">
-            <ArrowLeft size={14} /> Back to Goonj Portal
-          </Link>
-          <h1 className="text-3xl font-black tracking-tight text-white flex items-center gap-2">
-            GOONJ Administration Dashboard
-          </h1>
-          <p className="text-zinc-500 text-xs mt-1">
-            Feed schemes, modify guidelines databases, monitor auto-expiry, and audit voice-search analytics.
-          </p>
+    <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
+      
+      {/* Enterprise Header */}
+      <div className="bg-slate-950 text-white pt-8 pb-24 px-6 md:px-12 border-b border-slate-800">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div>
+            <Link href="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-5 text-xs font-black uppercase tracking-widest bg-white/10 px-4 py-2 rounded-lg backdrop-blur-md border border-white/10">
+              <ArrowLeft size={14} /> Back to Goonj Portal
+            </Link>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight flex items-center gap-4">
+              <Landmark className="text-orange-500" /> GOONJ Administration Dashboard
+            </h1>
+            <p className="text-slate-400 text-sm mt-2 font-medium">
+              Feed schemes, modify guidelines databases, monitor auto-expiry, and audit voice-search analytics.
+            </p>
+          </div>
+          <button onClick={handlePurgeExpired} disabled={purging} className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white transition-all text-xs font-black uppercase tracking-widest disabled:opacity-50 shadow-lg shadow-orange-500/20">
+            {purging ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            Deactivate & Purge Expired Schemes
+          </button>
         </div>
-
-        <button
-          onClick={handlePurgeExpired}
-          disabled={purging}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 transition-all text-xs font-bold uppercase tracking-wider disabled:opacity-50"
-        >
-          {purging ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-          Deactivate & Purge Expired Schemes
-        </button>
       </div>
 
-      {/* Analytics Dashboard Grid */}
-      <section className="mb-10 space-y-6">
-        <h2 className="text-base font-bold text-zinc-400 uppercase tracking-widest">
-          Discovery Analytics Monitor
-        </h2>
+      <div className="max-w-7xl mx-auto px-6 md:px-12 -mt-12 space-y-8 relative z-10">
         
-        {analyticsLoading ? (
-          <div className="py-8 flex justify-center text-zinc-500">
-            <Loader2 className="animate-spin text-purple-400" />
-          </div>
-        ) : analytics ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Top Stat cards */}
-            <div className="glass-panel rounded-2xl p-5 border border-zinc-900 flex items-center gap-4">
-              <div className="bg-purple-950/60 border border-purple-900/40 p-3 rounded-xl text-purple-400">
-                <Users size={20} />
-              </div>
-              <div>
-                <span className="block text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Registered Citizens</span>
-                <span className="text-xl font-extrabold text-white">{analytics.totalUsers}</span>
-              </div>
-            </div>
-
-            <div className="glass-panel rounded-2xl p-5 border border-zinc-900 flex items-center gap-4">
-              <div className="bg-teal-950/60 border border-teal-900/40 p-3 rounded-xl text-teal-400">
-                <Search size={20} />
-              </div>
-              <div>
-                <span className="block text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Voice Searches Processed</span>
-                <span className="text-xl font-extrabold text-white">{analytics.totalSearches}</span>
-              </div>
-            </div>
-
-            <div className="glass-panel rounded-2xl p-5 border border-zinc-900 flex items-center gap-4">
-              <div className="bg-rose-950/60 border border-rose-900/40 p-3 rounded-xl text-rose-400">
-                <Heart size={20} />
-              </div>
-              <div>
-                <span className="block text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Citizen Helpfulness Ratio</span>
-                <span className="text-xl font-extrabold text-white">
-                  {analytics.feedback.percent}% ({analytics.feedback.helpful}/{analytics.feedback.total})
-                </span>
-              </div>
-            </div>
-
-            {/* Demographics / Lists summary */}
-            <div className="glass-panel rounded-2xl p-5 border border-zinc-900 space-y-4">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 border-b border-zinc-900 pb-2">
-                <Globe size={14} className="text-purple-400" /> Active Regional Languages
-              </h3>
-              {analytics.languages.length === 0 ? (
-                <p className="text-xs text-zinc-600">No searches recorded yet.</p>
-              ) : (
-                <ul className="space-y-2 text-xs">
-                  {analytics.languages.map((l, i) => (
-                    <li key={i} className="flex justify-between items-center text-zinc-400">
-                      <span className="capitalize">{l.name}</span>
-                      <span className="font-bold text-white">{l.count} checks</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div className="glass-panel rounded-2xl p-5 border border-zinc-900 space-y-4">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 border-b border-zinc-900 pb-2">
-                <MapPin size={14} className="text-purple-400" /> Top Active States
-              </h3>
-              {analytics.states.length === 0 ? (
-                <p className="text-xs text-zinc-600">No states recorded yet.</p>
-              ) : (
-                <ul className="space-y-2 text-xs">
-                  {analytics.states.map((s, i) => (
-                    <li key={i} className="flex justify-between items-center text-zinc-400">
-                      <span>{s.name}</span>
-                      <span className="font-bold text-white">{s.count} checks</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div className="glass-panel rounded-2xl p-5 border border-zinc-900 space-y-4">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 border-b border-zinc-900 pb-2">
-                <Building size={14} className="text-purple-400" /> Top Saved Schemes
-              </h3>
-              {analytics.mostSavedSchemes.length === 0 ? (
-                <p className="text-xs text-zinc-600">No schemes bookmarked yet.</p>
-              ) : (
-                <ul className="space-y-2 text-xs">
-                  {analytics.mostSavedSchemes.map((s, i) => (
-                    <li key={i} className="flex justify-between items-center text-zinc-400">
-                      <span className="truncate max-w-[140px] font-semibold text-zinc-300" title={s.title}>{s.title}</span>
-                      <span className="font-bold text-white shrink-0">{s.savedCount} saves</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        ) : (
-          <p className="text-xs text-zinc-650">Analytics unavailable.</p>
-        )}
-      </section>
-
-      {/* Notifications */}
-      {message && (
-        <div className={`p-4 rounded-xl mb-8 flex items-start gap-3 border ${
-          message.isError 
-            ? 'bg-red-950/20 border-red-900/50 text-red-200' 
-            : 'bg-teal-950/20 border-teal-900/50 text-teal-200'
-        }`}>
-          {message.isError ? <AlertCircle size={20} className="shrink-0 mt-0.5" /> : <Check size={20} className="shrink-0 mt-0.5" />}
-          <span className="text-xs md:text-sm font-semibold">{message.text}</span>
-        </div>
-      )}
-
-      {/* Main Form and Database Table layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Form panel */}
-        <div className="lg:col-span-1 glass-panel rounded-2xl p-6 h-fit border border-zinc-900">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-              <Upload size={16} className="text-purple-400 animate-bounce" />
-              {editId ? 'Edit Active Scheme' : 'Ingest New Scheme'}
-            </h2>
-            {editId && (
-              <button 
-                onClick={handleCancelEdit}
-                className="p-1 rounded bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-white"
-                title="Cancel Edit"
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
-          
-          <form onSubmit={handleFormSubmit} className="space-y-4 text-xs">
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
-                Scheme Title
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="e.g. PM Kisan Samman Nidhi"
-                className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-600"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
-                Ministry / Department
-              </label>
-              <input
-                type="text"
-                value={ministry}
-                onChange={e => setMinistry(e.target.value)}
-                placeholder="e.g. Ministry of Agriculture"
-                className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-600"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
-                  State Scope
-                </label>
-                <select
-                  value={state}
-                  onChange={e => setState(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-600"
-                >
-                  {indianStates.map(st => (
-                    <option key={st} value={st}>{st}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
-                  Gender Restriction
-                </label>
-                <select
-                  value={genderRestriction}
-                  onChange={e => setGenderRestriction(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-600"
-                >
-                  <option value="All">All Genders</option>
-                  <option value="Female">Female Only</option>
-                  <option value="Male">Male Only</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
-                  Min Age Limit
-                </label>
-                <input
-                  type="number"
-                  value={minAge}
-                  onChange={e => setMinAge(e.target.value)}
-                  placeholder="e.g. 18"
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
-                  Max Age Limit
-                </label>
-                <input
-                  type="number"
-                  value={maxAge}
-                  onChange={e => setMaxAge(e.target.value)}
-                  placeholder="e.g. 60"
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-600"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
-                Max Income Ceiling (Annual INR)
-              </label>
-              <input
-                type="number"
-                value={incomeCeiling}
-                onChange={e => setIncomeCeiling(e.target.value)}
-                placeholder="e.g. 200000"
-                className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-600"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
-                Eligible Occupations (Comma-separated)
-              </label>
-              <input
-                type="text"
-                value={occupations}
-                onChange={e => setOccupations(e.target.value)}
-                placeholder="e.g. farmer, student, unemployed"
-                className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-600"
-              />
-              <span className="text-[10px] text-zinc-500 mt-1 block">Leave empty or write &apos;all&apos; for all jobs.</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
-                  Caste Categories
-                </label>
-                <input
-                  type="text"
-                  value={casteCategories}
-                  onChange={e => setCasteCategories(e.target.value)}
-                  placeholder="SC, ST, OBC, General"
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                  <Calendar size={12} /> Expiry Date
-                </label>
-                <input
-                  type="date"
-                  value={expiryDate}
-                  onChange={e => setExpiryDate(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-600 [color-scheme:dark]"
-                />
-              </div>
-            </div>
-
-            {editId && (
-              <div className="flex items-center gap-2 pt-2 pb-1">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  checked={isActive}
-                  onChange={e => setIsActive(e.target.checked)}
-                  className="w-4 h-4 rounded border-zinc-800 text-purple-600 bg-zinc-950 focus:ring-0"
-                />
-                <label htmlFor="isActive" className="text-zinc-300 font-bold">
-                  Scheme is Active & Searchable
-                </label>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                <Globe size={12} className="text-purple-400" /> Official Application URL (Apply Link)
-              </label>
-              <input
-                type="url"
-                value={applyUrl}
-                onChange={e => setApplyUrl(e.target.value)}
-                placeholder="e.g. https://pmsvanidhi.mohua.gov.in"
-                className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-600"
-              />
-            </div>
-
-            {/* Ingestion Source Tabs */}
-            <div className="pt-3 border-t border-zinc-900">
-              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">
-                {editId ? 'Update Guideline Document (Optional)' : 'Guideline Source Document'}
-              </label>
-              <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1 rounded-xl mb-3">
-                <button
-                  type="button"
-                  onClick={() => setIngestionType('pdf')}
-                  className={`py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                    ingestionType === 'pdf' ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-200'
-                  }`}
-                >
-                  PDF Document
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIngestionType('url')}
-                  className={`py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                    ingestionType === 'url' ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-200'
-                  }`}
-                >
-                  Web Link (URL)
-                </button>
-              </div>
-
-              {ingestionType === 'pdf' ? (
-                <div className="border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-950 p-4 rounded-xl text-center cursor-pointer transition-all">
-                  <input
-                    type="file"
-                    id="pdf-upload"
-                    accept="application/pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <label htmlFor="pdf-upload" className="cursor-pointer block">
-                    <FileText className="mx-auto text-zinc-650 mb-2" size={26} />
-                    <span className="text-[11px] font-medium text-zinc-400 block">
-                      {file ? file.name : 'Select PDF circular guidelines'}
-                    </span>
-                    <span className="text-[9px] text-zinc-500 mt-1 block">Max size 15MB</span>
-                  </label>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <div className="bg-zinc-950 border border-zinc-850 rounded-xl p-2.5 text-zinc-550">
-                    <LinkIcon size={14} />
-                  </div>
-                  <input
-                    type="url"
-                    value={linkUrl}
-                    onChange={e => setLinkUrl(e.target.value)}
-                    placeholder="https://scheme-guidelines.gov.in"
-                    className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-600"
-                  />
-                </div>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full flex items-center justify-center gap-2 mt-4 px-4 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-bold rounded-xl shadow-lg shadow-purple-900/20 transition-all text-xs"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 size={12} className="animate-spin" /> {editId ? 'Updating...' : 'Vectorizing...'}
-                </>
-              ) : (
-                <>
-                  <Check size={12} /> {editId ? 'Save Scheme Updates' : 'Vectorize & Add Scheme'}
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-
-        {/* Database catalog list */}
-        <div className="lg:col-span-2 glass-panel rounded-2xl p-6 border border-zinc-900">
-          <h2 className="text-base font-extrabold text-white mb-6 flex items-center gap-2">
-            <FileText size={16} className="text-teal-400" />
-            Registered Welfare Schemes Database ({schemes.length})
+        {/* Analytics Dashboard Grid */}
+        <section>
+          <h2 className="text-sm font-black text-slate-600 uppercase tracking-widest border-l-4 border-slate-900 pl-3 mb-6 hidden">
+            Discovery Analytics Monitor
           </h2>
 
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
-              <Loader2 size={32} className="animate-spin text-purple-400 mb-4" />
-              <p className="text-xs">Connecting to SQLite catalog database...</p>
-            </div>
-          ) : schemes.length === 0 ? (
-            <div className="text-center py-16 border border-dashed border-zinc-900 rounded-xl bg-zinc-950/20 text-zinc-650">
-              <FileText className="mx-auto text-zinc-800 mb-3" size={36} />
-              <h3 className="text-xs font-bold text-zinc-500">Database Empty</h3>
-              <p className="text-[10px] mt-1">Fill out the ingestion builder to feed guidelines.</p>
-            </div>
-          ) : (
-            <div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-zinc-900 text-zinc-500 text-[10px] font-bold uppercase tracking-wider">
-                      <th className="pb-3 pr-2">Scheme Name</th>
-                      <th className="pb-3 px-2">Scope / Status</th>
-                      <th className="pb-3 px-2">Criteria Range</th>
-                      <th className="pb-3 px-2">Validity</th>
-                      <th className="pb-3 pl-2 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-900/40">
-                    {paginatedSchemes.map(sch => (
-                      <tr key={sch.id} className="text-zinc-300 hover:bg-zinc-900/20 transition-colors">
-                        <td className="py-4 pr-4 font-semibold text-white max-w-[200px]">
-                          <div className="truncate text-xs font-bold" title={sch.title}>{sch.title}</div>
-                          <div className="text-[9px] text-zinc-550 truncate mt-0.5" title={sch.documentUrl || ''}>{sch.documentUrl}</div>
-                          {sch.applyUrl && (
-                            <div className="text-[9px] text-teal-400 font-semibold truncate mt-0.5" title={sch.applyUrl}>
-                              Apply URL: {sch.applyUrl}
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-4 px-2">
-                          <span className="inline-block px-1.5 py-0.5 rounded text-[8px] font-extrabold bg-zinc-900 text-zinc-450 border border-zinc-800 mr-1">
-                            {sch.state}
-                          </span>
-                          <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-extrabold border ${
-                            sch.isActive 
-                              ? 'bg-teal-950/40 border-teal-800/40 text-teal-400' 
-                              : 'bg-zinc-900 border-zinc-800 text-zinc-500'
-                          }`}>
-                            {sch.isActive ? 'Active' : 'Expired'}
-                          </span>
-                        </td>
-                        <td className="py-4 px-2 text-[10px] text-zinc-400">
-                          <div>
-                            Age:{' '}
-                            {sch.minAge !== null || sch.maxAge !== null
-                              ? `${sch.minAge || '0'}-${sch.maxAge || '∞'}`
-                              : 'All ages'}
-                          </div>
-                          <div className="text-zinc-550 text-[9px] mt-0.5">
-                            Income Ceiling:{' '}
-                            {sch.incomeCeiling !== null
-                              ? `₹${sch.incomeCeiling.toLocaleString()}`
-                              : 'None'}
-                          </div>
-                        </td>
-                        <td className="py-4 px-2 text-[10px] text-zinc-400">
-                          {sch.expiryDate ? (
-                            <span className={`${
-                              new Date(sch.expiryDate) < new Date() ? 'text-red-400 font-bold' : 'text-zinc-500'
-                            }`}>
-                              {new Date(sch.expiryDate).toLocaleDateString()}
-                            </span>
-                          ) : (
-                            <span className="text-zinc-650">Never</span>
-                          )}
-                        </td>
-                        <td className="py-4 pl-2 text-right">
-                          <div className="flex gap-1 justify-end">
-                            <button
-                              onClick={() => handleEditClick(sch)}
-                              className="p-1.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-all"
-                              title="Edit Scheme Details"
-                            >
-                              <Edit2 size={11} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteScheme(sch.id)}
-                              className="p-1.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-red-400 hover:border-red-950 transition-all"
-                              title="Delete Scheme permanently"
-                            >
-                              <Trash2 size={11} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination controls */}
-              {totalPages > 1 && (
-                <div className="mt-6 pt-4 border-t border-zinc-900/60 flex items-center justify-between text-xs">
-                  <div className="text-zinc-500">
-                    Showing <span className="text-zinc-300 font-bold">{startIndex + 1}</span> to{' '}
-                    <span className="text-zinc-300 font-bold">
-                      {Math.min(startIndex + itemsPerPage, schemes.length)}
-                    </span>{' '}
-                    of <span className="text-zinc-300 font-bold">{schemes.length}</span> schemes
+          {analyticsLoading ? (
+            <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-slate-400" size={32} /></div>
+          ) : analytics ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Top Stat cards */}
+              {[
+                { label: 'Registered Citizens', value: analytics.totalUsers, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+                { label: 'Voice Searches Processed', value: analytics.totalSearches, icon: Search, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                { label: 'Citizen Helpfulness Ratio', value: `${analytics.feedback.percent}%`, sub: `(${analytics.feedback.helpful}/${analytics.feedback.total})`, icon: Heart, color: 'text-orange-600', bg: 'bg-orange-50' },
+              ].map((stat, i) => (
+                <div key={i} className="bg-white rounded-2xl p-8 border border-slate-200 shadow-xl shadow-slate-200/40 flex items-center gap-5">
+                  <div className={`${stat.bg} ${stat.color} p-4 rounded-xl`}>
+                    <stat.icon size={28} />
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={activePage === 1}
-                      className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-850 transition-colors font-bold"
-                    >
-                      &larr; Previous
-                    </button>
-                    <span className="px-3 py-1.5 text-zinc-400 font-medium">
-                      Page {activePage} of {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={activePage === totalPages}
-                      className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-850 transition-colors font-bold"
-                    >
-                      Next &rarr;
-                    </button>
+                  <div>
+                    <span className="block text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1.5">{stat.label}</span>
+                    <span className="text-3xl font-black text-slate-900">{stat.value} {stat.sub && <span className="text-sm text-slate-400 font-bold ml-1">{stat.sub}</span>}</span>
                   </div>
                 </div>
-              )}
+              ))}
+
+              {/* Restored Lists */}
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-md space-y-4">
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Globe size={16} className="text-blue-500" /> Active Regional Languages
+                </h3>
+                {analytics.languages.length === 0 ? (
+                  <p className="text-sm text-slate-400 font-medium">No searches recorded yet.</p>
+                ) : (
+                  <ul className="space-y-3 text-sm font-medium">
+                    {analytics.languages.map((l, i) => (
+                      <li key={i} className="flex justify-between items-center text-slate-600">
+                        <span className="capitalize">{l.name}</span>
+                        <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">{l.count} checks</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-md space-y-4">
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <MapPin size={16} className="text-emerald-500" /> Top Active States
+                </h3>
+                {analytics.states.length === 0 ? (
+                  <p className="text-sm text-slate-400 font-medium">No states recorded yet.</p>
+                ) : (
+                  <ul className="space-y-3 text-sm font-medium">
+                    {analytics.states.map((s, i) => (
+                      <li key={i} className="flex justify-between items-center text-slate-600">
+                        <span>{s.name}</span>
+                        <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">{s.count} checks</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-md space-y-4">
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Building size={16} className="text-orange-500" /> Top Saved Schemes
+                </h3>
+                {analytics.mostSavedSchemes.length === 0 ? (
+                  <p className="text-sm text-slate-400 font-medium">No schemes bookmarked yet.</p>
+                ) : (
+                  <ul className="space-y-3 text-sm font-medium">
+                    {analytics.mostSavedSchemes.map((s, i) => (
+                      <li key={i} className="flex justify-between items-center text-slate-600">
+                        <span className="truncate max-w-[160px] text-slate-700 font-bold" title={s.title}>{s.title}</span>
+                        <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded shrink-0">{s.savedCount} saves</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-          )}
+          ) : null}
+        </section>
+
+        {message && (
+          <div className={`p-5 rounded-2xl flex items-start gap-3 border shadow-md font-bold text-sm ${message.isError ? 'bg-red-50 border-red-200 text-red-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+            {message.isError ? <AlertCircle size={20} /> : <Check size={20} />} {message.text}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Data Ingestion Form */}
+          <div className="lg:col-span-1 bg-white rounded-3xl p-8 h-fit border border-slate-200 shadow-xl shadow-slate-200/40 border-t-[6px] border-t-slate-900">
+            <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-5">
+              <h2 className="text-xl font-black text-slate-900 flex items-center gap-3">
+                <Upload size={20} className="text-slate-400" />
+                {editId ? 'Modify Scheme' : 'Ingest New Scheme'}
+              </h2>
+              {editId && <button onClick={handleCancelEdit} className="p-2 bg-slate-100 rounded-lg text-slate-500 hover:text-slate-900"><X size={16} /></button>}
+            </div>
+            
+            <form onSubmit={handleFormSubmit} className="space-y-6 text-sm font-bold">
+              <div>
+                <label className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2.5">Title</label>
+                <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. PM Kisan Samman Nidhi" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all shadow-inner placeholder-slate-400" required />
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2.5">Ministry</label>
+                <input type="text" value={ministry} onChange={e => setMinistry(e.target.value)} placeholder="e.g. Ministry of Agriculture" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all shadow-inner placeholder-slate-400" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2.5">State</label>
+                  <select value={state} onChange={e => setState(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all shadow-inner">
+                    {indianStates.map(st => <option key={st} value={st}>{st}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2.5">Gender</label>
+                  <select value={genderRestriction} onChange={e => setGenderRestriction(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all shadow-inner">
+                    <option value="All">All</option><option value="Female">Female Only</option><option value="Male">Male Only</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2.5">Min Age</label><input type="number" value={minAge} onChange={e => setMinAge(e.target.value)} placeholder="e.g. 18" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all shadow-inner placeholder-slate-400" /></div>
+                <div><label className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2.5">Max Age</label><input type="number" value={maxAge} onChange={e => setMaxAge(e.target.value)} placeholder="e.g. 60" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all shadow-inner placeholder-slate-400" /></div>
+              </div>
+
+              <div><label className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2.5">Income Ceiling (INR)</label><input type="number" value={incomeCeiling} onChange={e => setIncomeCeiling(e.target.value)} placeholder="e.g. 200000" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all shadow-inner placeholder-slate-400" /></div>
+              
+              <div><label className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2.5">Occupations</label><input type="text" value={occupations} onChange={e => setOccupations(e.target.value)} placeholder="e.g. farmer, student, unemployed" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all shadow-inner placeholder-slate-400" /></div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2.5">Categories</label><input type="text" value={casteCategories} onChange={e => setCasteCategories(e.target.value)} placeholder="SC, ST, OBC, General" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all shadow-inner placeholder-slate-400" /></div>
+                <div><label className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2.5">Expiry</label><input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all shadow-inner" /></div>
+              </div>
+
+              {editId && (
+                <div className="flex items-center gap-3 pt-2">
+                  <input type="checkbox" id="isActive" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="w-5 h-5 rounded border-slate-300 text-slate-900" />
+                  <label htmlFor="isActive" className="text-slate-800 cursor-pointer">Active in Search</label>
+                </div>
+              )}
+
+              <div><label className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2.5">Application URL</label><input type="url" value={applyUrl} onChange={e => setApplyUrl(e.target.value)} placeholder="e.g. https://pmsvanidhi.mohua.gov.in" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all shadow-inner placeholder-slate-400" /></div>
+
+              <div className="pt-6 mt-4 border-t border-slate-100">
+                <label className="block text-[10px] text-slate-500 uppercase tracking-widest mb-3">{editId ? 'Update Context (Optional)' : 'Guideline Source Document'}</label>
+                <div className="grid grid-cols-2 gap-2 bg-slate-100 p-2 rounded-xl mb-4">
+                  <button type="button" onClick={() => setIngestionType('pdf')} className={`py-2 text-xs uppercase tracking-widest rounded-lg transition-all ${ingestionType === 'pdf' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500'}`}>PDF</button>
+                  <button type="button" onClick={() => setIngestionType('url')} className={`py-2 text-xs uppercase tracking-widest rounded-lg transition-all ${ingestionType === 'url' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500'}`}>URL Link</button>
+                </div>
+                {ingestionType === 'pdf' ? (
+                  <div className="border-2 border-dashed border-slate-300 bg-slate-50 p-6 rounded-xl text-center cursor-pointer hover:border-slate-500 transition-all">
+                    <input type="file" id="pdf-upload" accept="application/pdf" onChange={handleFileChange} className="hidden" />
+                    <label htmlFor="pdf-upload" className="cursor-pointer block">
+                      <FileText className="mx-auto text-slate-400 mb-3" size={28} />
+                      <span className="text-sm font-bold text-slate-700 block">{file ? file.name : 'Select guidelines file'}</span>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-300">
+                    <LinkIcon size={18} className="text-slate-400" />
+                    <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://..." className="w-full bg-transparent text-sm font-bold text-slate-900 focus:outline-none" />
+                  </div>
+                )}
+              </div>
+
+              <button type="submit" disabled={submitting} className="w-full py-4 bg-slate-900 hover:bg-black disabled:bg-slate-300 text-white font-black rounded-xl shadow-xl transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-3 mt-8">
+                {submitting ? <><Loader2 size={18} className="animate-spin" /> Processing...</> : <><Upload size={18} /> {editId ? 'Update Record' : 'Vectorize & Add Scheme'}</>}
+              </button>
+            </form>
+          </div>
+
+          {/* Database Catalog */}
+          <div className="lg:col-span-2 bg-white rounded-3xl p-6 lg:p-8 border border-slate-200 shadow-xl shadow-slate-200/40">
+            <h2 className="text-xl font-black text-slate-900 mb-8 flex items-center gap-3 border-b border-slate-100 pb-5">
+              <FileText size={22} className="text-slate-400" /> Database Catalog ({schemes.length})
+            </h2>
+
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-32"><Loader2 size={40} className="animate-spin text-slate-900" /></div>
+            ) : schemes.length === 0 ? (
+              <div className="text-center py-24 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 text-slate-400">
+                <FileText className="mx-auto mb-4" size={48} />
+                <h3 className="text-base font-bold text-slate-600">Database Empty</h3>
+              </div>
+            ) : (
+              <div>
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-sm bg-white">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                        <th className="py-4 pl-6 pr-4">Entity</th>
+                        <th className="py-4 px-4">Status</th>
+                        <th className="py-4 px-4">Limits</th>
+                        <th className="py-4 pr-6 text-right">Edit</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedSchemes.map(sch => (
+                        <tr key={sch.id} className="text-slate-700 hover:bg-slate-50">
+                          <td className="py-5 pl-6 pr-4 max-w-[200px]">
+                            <div className="truncate text-sm font-black text-slate-900" title={sch.title}>{sch.title}</div>
+                            <div className="text-xs text-slate-400 font-bold mt-1.5 truncate">{sch.documentUrl}</div>
+                          </td>
+                          <td className="py-5 px-4">
+                            <div className="flex flex-col gap-2 items-start">
+                              <span className="px-2.5 py-1 rounded-md text-[9px] font-black bg-slate-200 text-slate-600 uppercase tracking-widest">{sch.state}</span>
+                              <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest ${sch.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{sch.isActive ? 'Live' : 'Off'}</span>
+                            </div>
+                          </td>
+                          <td className="py-5 px-4 text-xs font-bold text-slate-500">
+                            <div>Age: <span className="text-slate-900">{sch.minAge || '0'}-{sch.maxAge || '∞'}</span></div>
+                            <div className="mt-1">Inc: <span className="text-slate-900">{sch.incomeCeiling ? `₹${sch.incomeCeiling}` : 'None'}</span></div>
+                          </td>
+                          <td className="py-5 pr-6 text-right">
+                            <div className="flex gap-2 justify-end">
+                              <button onClick={() => handleEditClick(sch)} className="p-2.5 rounded-lg bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition-colors"><Edit2 size={16} /></button>
+                              <button onClick={() => handleDeleteScheme(sch.id)} className="p-2.5 rounded-lg bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-100 transition-colors"><Trash2 size={16} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="mt-8 pt-5 border-t border-slate-100 flex items-center justify-between text-sm font-bold text-slate-500">
+                    <div>{startIndex + 1}-{Math.min(startIndex + itemsPerPage, schemes.length)} of {schemes.length}</div>
+                    <div className="flex gap-2">
+                      <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={activePage === 1} className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-50">Prev</button>
+                      <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={activePage === totalPages} className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-50">Next</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
