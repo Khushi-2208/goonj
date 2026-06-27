@@ -926,16 +926,16 @@ export default function GoonjPortal() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-4 text-center text-sm">
-                    <div className="bg-white/10 backdrop-blur-md border border-white/20 px-8 py-5 rounded-2xl min-w-[130px]">
-                      <div className="font-black text-3xl">{savedSchemes.length}</div>
-                      <div className="text-orange-400 font-bold uppercase tracking-widest text-[10px] mt-2">Saved</div>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur-md border border-white/20 px-8 py-5 rounded-2xl min-w-[130px]">
-                      <div className="font-black text-3xl">{searchHistory.length}</div>
-                      <div className="text-orange-400 font-bold uppercase tracking-widest text-[10px] mt-2">Searches</div>
-                    </div>
-                  </div>
+<div className="flex gap-4 text-center text-sm">
+  <div className="bg-white px-8 py-5 rounded-2xl min-w-[130px] shadow-xl shadow-black/10 border border-white/20">
+    <div className="font-black text-4xl text-slate-900">{savedSchemes.length}</div>
+    <div className="text-orange-500 font-bold uppercase tracking-widest text-[10px] mt-2">Saved</div>
+  </div>
+  <div className="bg-white px-8 py-5 rounded-2xl min-w-[130px] shadow-xl shadow-black/10 border border-white/20">
+    <div className="font-black text-4xl text-slate-900">{searchHistory.length}</div>
+    <div className="text-orange-500 font-bold uppercase tracking-widest text-[10px] mt-2">Searches</div>
+  </div>
+</div>
                 </div>
               </div>
 
